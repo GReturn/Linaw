@@ -1,0 +1,15 @@
+{
+  "manifest_version": 3,
+  "name": "Linaw",
+  "version": "1.0",
+  "permissions": ["sidePanel"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "action": {
+    "default_title": "Click to open panel"
+  }
+}
