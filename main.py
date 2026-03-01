@@ -17,12 +17,6 @@ load_dotenv(dotenv_path=env_path)
 
 client = genai.Client()
 
-response = client.models.generate_content(
-    model="gemini-3-flash-preview",
-    contents="Explain how AI works in a few words",
-)
-
-print(response.text)
 
 app = FastAPI()
 
@@ -117,8 +111,19 @@ async def upload_source(
 }
 
 
+
+USE_MOCK = True  # Set to False when you actually want to use Gemini
+
 @app.post("/api/define")
 async def define_word(request: DefinitionRequest):
+
+    if USE_MOCK:
+        return DefinitionResponse(
+            word=request.word,
+            cebuano_context=f"Kini usa ka mock explanation para sa {request.word} para dili mahurot ang imong quota.",
+            english_definition=f"This is a mock definition for {request.word} to save your API credits.",
+            confused_with=["Mock1", "Mock2", "Mock3"]
+        )
     # Prompting for raw strings to fit your existing fields
     prompt = f"""
     Explain the word "{request.word}".
