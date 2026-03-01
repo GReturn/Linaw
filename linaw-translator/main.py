@@ -66,7 +66,7 @@ class TranslationResponse(BaseModel):
     translated_text: str
 
 # This class will boot up ONCE per container lifecycle
-@app.cls(image=image, gpu="A10G", container_idle_timeout=60, allow_concurrent_inputs=10)
+@app.cls(image=image, gpu="A10G", scaledown_window=60)
 class Translator:
     @modal.enter()
     def load_model(self):
@@ -83,6 +83,7 @@ class Translator:
         print("Model loaded successfully!")
 
     @modal.method()
+    @modal.concurrent(10)
     def translate(self, text: str, target_lang: str = "tgl_Latn") -> str:
         """The actual inference logic."""
         import nltk
