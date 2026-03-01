@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, BookOpen, File, Loader2, AlertCircle } from 'lucide-react';
-import { collection, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { useAuth } from "../context/AuthContext";
+import { createNotebook } from '../services/notebookService';
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -45,11 +46,7 @@ export default function Dashboard() {
 
     try {
       setError(null);
-      const notebooksRef = collection(db, "users", user.uid, "notebooks");
-      await addDoc(notebooksRef, {
-        title: newTitle.trim(),
-        createdAt: serverTimestamp(),
-      });
+      await createNotebook(user.uid, newTitle.trim());
       setNewTitle("");
       setShowModal(false);
       await loadData();
