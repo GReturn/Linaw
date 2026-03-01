@@ -87,36 +87,51 @@ class Translator:
     @modal.method()
     @modal.concurrent(10)
     def translate(self, text: str, target_lang: str = "tgl_Latn") -> str:
-        """The actual inference logic."""
+        """The actual inference logic, preserving paragraphs."""
         import nltk
         
-        # 1. Split text into individual sentences
-        sentences = nltk.tokenize.sent_tokenize(text)
-        if not sentences:
-            return ""
-            
-        # 2. Tokenize all sentences for CT2
-        source_tokens = [self.tokenizer.convert_ids_to_tokens(self.tokenizer.encode(sent)) for sent in sentences]
-        target_prefix = [[target_lang]] * len(sentences)
+        # Split text by newlines to preserve paragraph structure
+        paragraphs = text.split("\n")
+        translated_paragraphs = []
         
-        # 3. Translate the batch
-        results = self.translator.translate_batch(
-            source_tokens, 
-            target_prefix=target_prefix,
-            beam_size=1,                  
-            repetition_penalty=1.1,       
-            max_decoding_length=200
-        )
-        
-        # 4. Decode
-        translated_text = ""
-        for result in results:
-            tokens = result.hypotheses[0][1:]
-            text_chunk = self.tokenizer.decode(self.tokenizer.convert_tokens_to_ids(tokens), skip_special_tokens=True)
-            text_chunk = text_chunk.replace("<unk>", "").strip() 
-            translated_text += text_chunk + " "
+        for paragraph in paragraphs:
+            # If paragraph is empty (e.g. consecutive newlines), preserve it
+            if not paragraph.strip():
+                translated_paragraphs.append("")
+                continue
+                
+            # Split paragraph into individual sentences
+            sentences = nltk.tokenize.sent_tokenize(paragraph)
+            if not sentences:
+                translated_paragraphs.append("")
+                continue
+                
+            # Tokenize all sentences for CT2
+            source_tokens = [self.tokenizer.convert_ids_to_tokens(self.tokenizer.encode(sent)) for sent in sentences]
+            target_prefix = [[target_lang]] * len(sentences)
             
-        return translated_text.strip()
+            # Translate the batch
+            results = self.translator.translate_batch(
+                source_tokens, 
+                target_prefix=target_prefix,
+                beam_size=1,                  
+                repetition_penalty=1.1,       
+                max_decoding_length=200
+            )
+            
+            # Decode and combine sentences in the paragraph
+            translated_paragraph_text = ""
+            for result in results:
+                tokens = result.hypotheses[0][1:]
+                text_chunk = self.tokenizer.decode(self.tokenizer.convert_tokens_to_ids(tokens), skip_special_tokens=True)
+                text_chunk = text_chunk.replace("<unk>", "").strip() 
+                translated_paragraph_text += text_chunk + " "
+                
+            # Add translated paragraph (stripped to remove trailing space from sentences)
+            translated_paragraphs.append(translated_paragraph_text.strip())
+            
+        # Rejoin paragraphs with original newlines
+        return "\n".join(translated_paragraphs)
 
 # Hook the FastAPI endpoints to the Modal Class
 @web_app.post("/translate", response_model=TranslationResponse)
