@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Header from '../components/Header';
 import Hero from '../components/Hero';
+import Dashboard from '../components/Dashboard';
 import InteractiveReader from '../components/InteractiveReader';
 import Features from '../components/Features';
 import Comparison from '../components/Comparison';
@@ -30,7 +31,10 @@ export default function Home() {
 
       <main className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 pt-28 pb-20">
         <Hero />
-        <InteractiveReader />
+        <Dashboard />
+        <div id="interactive-demo" className="scroll-mt-32">
+          <InteractiveReader />
+        </div>
         <Features />
         <Comparison />
       </main>

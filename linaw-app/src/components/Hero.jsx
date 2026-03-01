@@ -14,7 +14,7 @@ export default function Hero() {
       </h1>
       <p className="text-xl text-[#718096] flex items-center justify-center gap-2 font-medium">
         <MousePointer2 size={24} className="text-[#4ECDC4]" />
-        Tap the glowing words to see who they really are.
+        Tap a notebook.
       </p>
     </section>
   );
