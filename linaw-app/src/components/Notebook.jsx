@@ -11,6 +11,9 @@ import api from '../api';
 // Core Styles
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { db, auth } from "../services/firebase";
+import { getDocs } from "firebase/firestore";
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   'pdfjs-dist/build/pdf.worker.min.mjs',
@@ -25,6 +28,8 @@ const InteractiveReader = () => {
   const [activeTab, setActiveTab] = useState('sources');
   const [mobileView, setMobileView] = useState('reader');
   const [notebook, setNotebook] = useState({ title: "Linaw", file: "/2025.nllp-1.3.pdf" });
+  const [documents, setDocuments] = useState([]);
+  const [currentFile, setCurrentFile] = useState(null);
 
   // PDF State
   const [selectedWord, setSelectedWord] = useState("Voluptatem");
@@ -65,6 +70,16 @@ const InteractiveReader = () => {
     loadInitialData();
   }, [id]);
 
+  useEffect(() => {
+  const unsubscribe = auth.onAuthStateChanged((user) => {
+    if (user && id) {
+      loadDocuments(user);
+    }
+  });
+
+  return () => unsubscribe();
+}, [id]);
+
   // Fetch definition when word is selected
   useEffect(() => {
     const fetchDefinition = async () => {
@@ -91,14 +106,76 @@ const InteractiveReader = () => {
 
   // Add word to history
   const addToHistory = async (word) => {
-    try {
-      const response = await api.post('/api/history/add', { word });
-      setHistory(response.data.history);
-    } catch (err) {
-      console.error('Error adding to history:', err);
-      // Don't show error to user for history - it's not critical
+      try {
+        const response = await api.post('/api/history/add', { word });
+        setHistory(response.data.history);
+      } catch (err) {
+        console.error('Error adding to history:', err);
+        // Don't show error to user for history - it's not critical
+      }
+    };
+
+    const loadDocuments = async (user) => {
+    const querySnapshot = await getDocs(
+      collection(db, "users", user.uid, "notebooks", id, "documents")
+    );
+
+    const docs = querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+
+    setDocuments(docs);
+
+    if (docs.length > 0) {
+      setCurrentFile(docs[0].fileURL);
     }
   };
+
+  const handleFileUpload = async (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  console.log("User:", auth.currentUser);
+  console.log("Notebook ID from URL:", id);
+
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("notebook_id", id);
+  formData.append("user_id", auth.currentUser.uid);
+
+  try {
+    const response = await fetch("http://localhost:8000/sources/upload", {
+      method: "POST",
+      body: formData
+    });
+
+    const data = await response.json();
+    console.log("Backend returned:", data);
+
+    const docRef = await addDoc(
+      collection(
+        db,
+        "users",
+        auth.currentUser.uid,
+        "notebooks",
+        id,
+        "documents"
+      ),
+      {
+        fileName: data.fileName,
+        fileURL: data.fileURL,
+        uploadDate: serverTimestamp()
+      }
+    );
+
+    console.log("Firestore doc created with ID:", docRef.id);
+    await loadDocuments(auth.currentUser);
+
+  } catch (error) {
+    console.error("UPLOAD ERROR:", error);
+  }
+};
 
   const handleTextSelection = async () => {
     const selection = window.getSelection();
@@ -202,14 +279,36 @@ const InteractiveReader = () => {
           </button>
         </div>
 
+        <input
+          type="file"
+          accept="application/pdf"
+          id="sourceUpload"
+          className="hidden"
+          onChange={handleFileUpload}
+        />
+
         <div className="flex-1 overflow-y-auto px-4 pb-4">
           {activeTab === 'sources' ? (
             <div className="space-y-3">
               <div className="p-3 bg-[#3DBDB4]/5 border border-[#3DBDB4]/20 rounded-lg flex items-center gap-3">
-                <div className="p-2 bg-white rounded shadow-sm text-[#3DBDB4]"><FileText size={16} /></div>
-                <span className="text-sm font-bold truncate text-[#2D3748]">{notebook.title}.pdf</span>
+                {documents.map((doc) => (
+                  <button
+                    key={doc.id}
+                    onClick={() => setCurrentFile(doc.fileURL)}
+                    className="p-3 bg-[#3DBDB4]/5 border border-[#3DBDB4]/20 rounded-lg flex items-center gap-3 w-full"
+                  >
+                    <div className="p-2 bg-white rounded shadow-sm text-[#3DBDB4]">
+                      <FileText size={16} />
+                    </div>
+                    <span className="text-sm font-bold truncate text-[#2D3748]">
+                      {doc.fileName}
+                    </span>
+                  </button>
+                ))}
               </div>
-              <button className="w-full py-3 border border-dashed border-gray-200 rounded-lg flex items-center justify-center gap-2 text-gray-400 font-bold text-sm hover:border-[#3DBDB4] hover:bg-[#3DBDB4]/5 transition-all">
+              <button 
+                onClick={() => document.getElementById("sourceUpload").click()}
+                className="w-full py-3 border border-dashed border-gray-200 rounded-lg flex items-center justify-center gap-2 text-gray-400 font-bold text-sm hover:border-[#3DBDB4] hover:bg-[#3DBDB4]/5 transition-all">
                 <Plus size={16} /> Add Source
               </button>
             </div>
@@ -250,9 +349,18 @@ const InteractiveReader = () => {
 
         <div className="flex-1 overflow-auto flex justify-center py-8 px-4" onMouseUp={handleTextSelection}>
           <div className="shadow-xl bg-white h-fit border border-gray-200">
-            <Document file={notebook.file} onLoadSuccess={({numPages}) => setNumPages(numPages)}>
-              <Page pageNumber={pageNumber} scale={scale} renderTextLayer={true} />
-            </Document>
+            {currentFile && (
+              <Document
+                file={currentFile}
+                onLoadSuccess={({ numPages }) => setNumPages(numPages)}
+              >
+                <Page
+                  pageNumber={pageNumber}
+                  scale={scale}
+                  renderTextLayer={true}
+                />
+              </Document>
+            )}
           </div>
         </div>
 
