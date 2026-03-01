@@ -49,7 +49,9 @@ image = (
         "pydantic",
         "nltk",
         "hf-transfer", # Faster HuggingFace downloads
-        "accelerate"
+        "accelerate",
+        "sentencepiece",
+        "protobuf"
     )
     .env({"HF_HUB_ENABLE_HF_TRANSFER": "1"}) # Enable fast downloads
     .run_function(download_models) # Trigger the downloads at build time!
