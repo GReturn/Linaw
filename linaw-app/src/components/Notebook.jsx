@@ -89,7 +89,18 @@ const InteractiveReader = () => {
     fetchDefinition();
   }, [selectedWord]);
 
-  const handleTextSelection = () => {
+  // Add word to history
+  const addToHistory = async (word) => {
+    try {
+      const response = await api.post('/api/history/add', { word });
+      setHistory(response.data.history);
+    } catch (err) {
+      console.error('Error adding to history:', err);
+      // Don't show error to user for history - it's not critical
+    }
+  };
+
+  const handleTextSelection = async () => {
     const selection = window.getSelection();
     if (!selection || selection.rangeCount === 0) return;
 
@@ -135,10 +146,22 @@ const InteractiveReader = () => {
       finalSelection = words.slice(0, 2).join(" ");
     }
 
+    // Update selected word state
     setSelectedWord(finalSelection);
+
+    // Add to history list
+    await addToHistory(finalSelection);
+
     if (window.innerWidth < 768) {
       setMobileView("insights");
     }
+  };
+
+  // Optional: Add a function to manually clear selection
+  const handleHistoryItemClick = async (term) => {
+    setSelectedWord(term);
+    // Optionally re-add to history to move it to front
+    await addToHistory(term);
   };
 
   return (
@@ -194,7 +217,7 @@ const InteractiveReader = () => {
             <div className="space-y-2">
               <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 ml-1">Recent Lookups</p>
               {history.length > 0 ? history.map((term, i) => (
-                <button key={i} onClick={() => setSelectedWord(term)} className="w-full p-3 bg-white border border-gray-100 rounded-lg shadow-sm flex items-center justify-between group hover:border-[#FF6B6B] transition-all">
+                <button key={i} onClick={() => handleHistoryItemClick(term)} className="w-full p-3 bg-white border border-gray-100 rounded-lg shadow-sm flex items-center justify-between group hover:border-[#FF6B6B] transition-all">
                   <span className="text-sm font-semibold text-gray-600 group-hover:text-[#FF6B6B]">{term}</span>
                   <ChevronRight size={14} className="text-gray-300 group-hover:text-[#FF6B6B]" />
                 </button>
@@ -315,7 +338,7 @@ const InteractiveReader = () => {
             </div>
             <div className="flex flex-wrap gap-2">
               {confusionTerms.map((term) => (
-                <button key={term} onClick={() => setSelectedWord(term)} className="text-[10px] px-3 py-1.5 bg-white border border-[#FF6B6B]/20 rounded-md font-bold text-gray-600 hover:bg-[#FF6B6B] hover:text-white transition-all shadow-sm">
+                <button key={term} onClick={() => handleHistoryItemClick(term)} className="text-[10px] px-3 py-1.5 bg-white border border-[#FF6B6B]/20 rounded-md font-bold text-gray-600 hover:bg-[#FF6B6B] hover:text-white transition-all shadow-sm">
                   {term}
                 </button>
               ))}

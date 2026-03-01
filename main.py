@@ -15,6 +15,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# In-memory storage (replace with database in production)
+history_store = ["Accusantium", "Dignissimos", "Blanditiis", "Praesentium"]  # Initialize with mock data
+confusion_terms_store = ["Accusamus", "Ducimus", "Blanditiis"]
+
 # Pydantic models
 class DefinitionRequest(BaseModel):
     word: str
@@ -31,6 +35,9 @@ class NotebookRequest(BaseModel):
     title: str
     file: str
 
+class AddToHistoryRequest(BaseModel):
+    word: str
+
 @app.get("/")
 async def root():
     return {"message": "Welcome to Linaw API"}
@@ -45,13 +52,26 @@ async def get_notebook(notebook_id: str):
 
 @app.get("/api/history")
 async def get_history():
-    # Mock data - replace with actual database query
-    return ["Accusantium", "Dignissimos", "Blanditiis", "Praesentium"]
+    # Return the in-memory history store
+    return history_store
+
+@app.post("/api/history/add")
+async def add_to_history(request: AddToHistoryRequest):
+    # Add word to history if it doesn't already exist (at the beginning)
+    if request.word in history_store:
+        # Move to front if it exists
+        history_store.remove(request.word)
+    # Add to beginning of list
+    history_store.insert(0, request.word)
+    # Keep only last 20 items
+    while len(history_store) > 20:
+        history_store.pop()
+    return {"message": "Added to history", "history": history_store}
 
 @app.get("/api/confusion-terms")
 async def get_confusion_terms():
-    # Mock data - replace with actual database query
-    return ["Accusamus", "Ducimus", "Blanditiis"]
+    # Return the in-memory confusion terms store
+    return confusion_terms_store
 
 @app.post("/api/define")
 async def define_word(request: DefinitionRequest):
