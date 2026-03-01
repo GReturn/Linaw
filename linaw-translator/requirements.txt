@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+torch
+ctranslate2
+transformers
+pydantic
+nltk
+accelerate
+bitsandbytes
