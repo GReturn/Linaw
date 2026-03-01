@@ -7,6 +7,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
+from fastapi import UploadFile, File, Form
+import uuid
+from fastapi.staticfiles import StaticFiles
+import os
 
 env_path = Path('.') / 'linaw-app' / '.env'
 load_dotenv(dotenv_path=env_path)
@@ -21,6 +25,11 @@ response = client.models.generate_content(
 print(response.text)
 
 app = FastAPI()
+
+UPLOAD_DIR = "uploads"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 # Configure CORS
 app.add_middleware(
@@ -88,6 +97,24 @@ async def add_to_history(request: AddToHistoryRequest):
 async def get_confusion_terms():
     # Return the in-memory confusion terms store
     return confusion_terms_store
+
+@app.post("/sources/upload")
+async def upload_source(
+    notebook_id: str = Form(...),
+    user_id: str = Form(...),
+    file: UploadFile = File(...)
+):
+    unique_filename = f"{uuid.uuid4()}_{file.filename}"
+    file_location = os.path.join(UPLOAD_DIR, unique_filename)
+
+    content = await file.read()
+    with open(file_location, "wb") as f:
+        f.write(content)
+
+    return {
+    "fileName": file.filename,
+    "fileURL": f"http://localhost:8000/uploads/{unique_filename}"
+}
 
 
 @app.post("/api/define")

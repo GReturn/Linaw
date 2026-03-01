@@ -10,7 +10,8 @@ venv\Scripts\activate
 # 2. INSTALL BACKEND DEPENDENCIES
 pip install fastapi
 pip install uvicorn
-
+pip install python-multipart
+pip install -U google-genai
 
 # 3. INSTALL FRONTEND DEPENDENCIES (in new terminal)
 cd linaw-app
