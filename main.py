@@ -1,31 +1,21 @@
+import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from typing import List
 
 app = FastAPI()
 
 # Configure CORS - This allows your React app to communicate with the backend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",  # Vite default
-        "http://localhost:5174",  # Your current port
-        "http://localhost:3000",  # React default
-        "http://127.0.0.1:5173",
-        "http://127.0.0.1:5174",
-    ],
+    allow_origins=["http://localhost:5173"],  # Fixed: now it's a list
     allow_credentials=True,
-    allow_methods=["*"],  # Allows all methods (GET, POST, PUT, DELETE, etc.)
-    allow_headers=["*"],  # Allows all headers
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 @app.get("/")
-def read_root():
-    return {"message": "Welcome to Linaw API"}
+async def root():
+    return {"message": "Welcome to OTEN API"}
 
-@app.get("/health")
-def health_check():
-    return {"status": "healthy"}
-
-@app.get("/items/{item_id}")
-def read_item(item_id: int, q: str = None):
-    return {"item_id": item_id, "q": q}

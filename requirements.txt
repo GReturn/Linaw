@@ -1,0 +1,11 @@
+h11~=0.16.0
+pip~=25.2
+typing_extensions~=4.15.0
+fastapi~=0.134.0
+pydantic~=2.12.5
+pydantic_core~=2.41.5
+starlette~=0.52.1
+anyio~=4.12.1
+click~=8.3.1
+uvicorn~=0.41.0
+annotated-types~=0.7.0

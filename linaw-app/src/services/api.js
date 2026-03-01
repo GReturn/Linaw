@@ -1,25 +1,10 @@
-// src/services/api.js
-const API_BASE_URL = 'http://localhost:8000';
+import axios from 'axios';
 
-export const api = {
-  // Health check
-  checkHealth: async () => {
-    const response = await fetch(`${API_BASE_URL}/health`);
-    return response.json();
-  },
+// Create an instance of axios with the base URL
+const api = axios.create({
+  baseURL: "http://127.0.0.1:8000"
+});
 
-  // Get welcome message
-  getWelcome: async () => {
-    const response = await fetch(`${API_BASE_URL}/`);
-    return response.json();
-  },
+// Export the Axios instance
+export default api;
 
-  // Get item by ID
-  getItem: async (itemId, query = null) => {
-    const url = query
-      ? `${API_BASE_URL}/items/${itemId}?q=${query}`
-      : `${API_BASE_URL}/items/${itemId}`;
-    const response = await fetch(url);
-    return response.json();
-  }
-};
