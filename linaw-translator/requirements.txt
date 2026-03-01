@@ -7,3 +7,4 @@ pydantic
 nltk
 accelerate
 bitsandbytes
+modal
