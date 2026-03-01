@@ -7,8 +7,9 @@ import {
   signInWithEmailAndPassword,
   updateProfile
 } from "firebase/auth";
-import { doc, setDoc, collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { doc, setDoc } from "firebase/firestore";
 import { db } from "../services/firebase";
+import { createNotebook } from "../services/notebookService";
 
 
 export default function AuthPage() {
@@ -47,13 +48,8 @@ export default function AuthPage() {
           createdAt: new Date()
         });
 
-        // Directly create the notebooks subcollection in Firestore so it exists
-        // for new users. The backend crashes when the subcollection is missing.
-        const notebooksRef = collection(db, "users", user.uid, "notebooks");
-        await addDoc(notebooksRef, {
-          title: "Getting Started with Linaw",
-          createdAt: serverTimestamp(),
-        });
+
+        await createNotebook(user.uid, "Getting Started");
 
         navigate("/");
       }
