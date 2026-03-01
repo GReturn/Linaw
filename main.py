@@ -1,4 +1,8 @@
+from pathlib import Path
+
+from google import genai
 import uvicorn
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -7,6 +11,18 @@ from fastapi import UploadFile, File, Form
 import uuid
 from fastapi.staticfiles import StaticFiles
 import os
+
+env_path = Path('.') / 'linaw-app' / '.env'
+load_dotenv(dotenv_path=env_path)
+
+client = genai.Client()
+
+response = client.models.generate_content(
+    model="gemini-3-flash-preview",
+    contents="Explain how AI works in a few words",
+)
+
+print(response.text)
 
 app = FastAPI()
 
@@ -100,15 +116,49 @@ async def upload_source(
     "fileURL": f"http://localhost:8000/uploads/{unique_filename}"
 }
 
+
 @app.post("/api/define")
 async def define_word(request: DefinitionRequest):
-    # Mock response - replace with actual AI/API call
-    return DefinitionResponse(
-        word=request.word,
-        cebuano_context=f"At vero eos et accusamus et {request.word} odio dignissimos ducimus qui blanditiis praesentium...",
-        english_definition=f"The standard English definition and context for {request.word} will be displayed here from the global dictionary.",
-        confused_with=["Accusamus", "Ducimus", "Blanditiis"]
-    )
+    # Prompting for raw strings to fit your existing fields
+    prompt = f"""
+    Explain the word "{request.word}".
+    Provide exactly two paragraphs:
+    1. A translation and explanation in Cebuano (Bisaya) with a sample sentence.
+    2. A formal English definition.
+    Then, list 3 words often confused with it, separated by commas.
+    Separate these three sections with '---'.
+    """
+
+    try:
+        response = client.models.generate_content(
+            model="gemini-3-flash-preview",
+            contents=prompt,
+        )
+
+        # Split the raw string back into the parts your return statement needs
+        raw_output = response.text
+        parts = raw_output.split("---")
+
+        # Extracting strings or providing fallbacks to keep the backend stable
+        cebuano = parts[0].strip() if len(parts) > 0 else "Walay hubad."
+        english = parts[1].strip() if len(parts) > 1 else "No definition."
+        confused = [w.strip() for w in parts[2].split(",")] if len(parts) > 2 else []
+
+        return DefinitionResponse(
+            word=request.word,
+            cebuano_context=cebuano,
+            english_definition=english,
+            confused_with=confused
+        )
+
+    except Exception as e:
+        # If the API fails, we still return the structure so the frontend doesn't break
+        return DefinitionResponse(
+            word=request.word,
+            cebuano_context="Sayop sa pagkonektar sa AI.",
+            english_definition=f"Error: {str(e)}",
+            confused_with=[]
+        )
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)

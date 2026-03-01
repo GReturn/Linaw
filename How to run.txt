@@ -1,0 +1,25 @@
+# COMPLETE SETUP COMMANDS - COPY AND PASTE EVERYTHING BELOW
+
+# 1. CREATE AND ACTIVATE VIRTUAL ENVIRONMENT
+python -m venv venv
+# On Windows:
+venv\Scripts\activate
+# On Mac/Linux:
+# source venv/bin/activate
+
+# 2. INSTALL BACKEND DEPENDENCIES
+pip install fastapi
+pip install uvicorn
+pip install python-multipart
+pip install -U google-genai
+
+# 3. INSTALL FRONTEND DEPENDENCIES (in new terminal)
+cd linaw-app
+npm install axios
+
+# 4. START BACKEND SERVER (in first terminal, venv activated)
+uvicorn main:app --reload
+
+# 5. START FRONTEND SERVER (in second terminal)
+cd linaw-app
+npm run dev
