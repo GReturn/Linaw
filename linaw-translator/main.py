@@ -134,6 +134,12 @@ async def translate_endpoint(request: TranslationRequest):
 async def health_check():
     return {"status": "ok"}
 
+@web_app.get("/")
+async def root_redirect():
+    """Redirects the root URL to the interactive FastAPI docs."""
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url="/docs")
+
 # Expose the FastAPI app to the internet via Modal
 @app.function(image=image)
 @modal.asgi_app()
