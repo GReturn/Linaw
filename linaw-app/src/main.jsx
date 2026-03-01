@@ -4,7 +4,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Home from './pages/Home';
-import InteractiveReader from './components/Notebook';
+import InteractiveReader from './pages/Notebook';
 import './index.css';
 import AuthPage from "./pages/AuthPage";
 
