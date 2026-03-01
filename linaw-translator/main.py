@@ -44,7 +44,7 @@ image = (
     .pip_install(
         "fastapi",
         "ctranslate2",
-        "transformers",
+        "transformers>=4.30.0",
         "torch",
         "pydantic",
         "nltk",
