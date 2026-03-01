@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import "./AuthPage.css";
 import { auth } from "../services/firebase";
 import {
@@ -6,8 +7,9 @@ import {
   signInWithEmailAndPassword,
   updateProfile
 } from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore";
+import { doc, setDoc, collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../services/firebase";
+
 
 export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
@@ -15,12 +17,14 @@ export default function AuthPage() {
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
 
+  const navigate = useNavigate();
+
   const handleSubmit = async () => {
     try {
       if (isLogin) {
         // LOGIN
         await signInWithEmailAndPassword(auth, email, password);
-        alert("Logged in successfully!");
+        navigate("/");
       } else {
         // REGISTER
         const userCredential = await createUserWithEmailAndPassword(
@@ -36,13 +40,22 @@ export default function AuthPage() {
           displayName: fullName
         });
 
+        // Save user document
         await setDoc(doc(db, "users", user.uid), {
           name: fullName,
           email: email,
           createdAt: new Date()
         });
 
-        alert("Account created!");
+        // Directly create the notebooks subcollection in Firestore so it exists
+        // for new users. The backend crashes when the subcollection is missing.
+        const notebooksRef = collection(db, "users", user.uid, "notebooks");
+        await addDoc(notebooksRef, {
+          title: "Getting Started with Linaw",
+          createdAt: serverTimestamp(),
+        });
+
+        navigate("/");
       }
     } catch (error) {
       alert(error.message);
