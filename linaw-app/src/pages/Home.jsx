@@ -31,10 +31,10 @@ export default function Home() {
 
       <main className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 pt-28 pb-20">
         <Hero />
+        <Dashboard />
         <div id="interactive-demo" className="scroll-mt-32">
           <InteractiveReader />
         </div>
-        <Dashboard />
         <Features />
         <Comparison />
       </main>
