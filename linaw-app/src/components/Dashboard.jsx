@@ -25,7 +25,7 @@ export default function Dashboard() {
           <div className="w-14 h-14 bg-white rounded-2xl shadow-sm flex items-center justify-center mb-4 group-hover:scale-110 group-hover:bg-[#3DBDB4] group-hover:text-white text-[#3DBDB4] transition-all duration-300">
             <Plus size={32} strokeWidth={3} />
           </div>
-          <span className="font-bold text-[#3DBDB4] text-sm uppercase tracking-wider">Upload PDF</span>
+          <span className="font-bold text-[#3DBDB4] text-sm uppercase tracking-wider">Create Notebook</span>
         </button>
 
         {/* LOADING STATE */}
