@@ -1,17 +1,13 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import Home from './pages/Home';
-import InteractiveReader from './components/Notebook';
+import { BrowserRouter } from 'react-router-dom';
+import App from './App';
 import './index.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/notebook/:id" element={<InteractiveReader />} />
-      </Routes>
+      <App />
     </BrowserRouter>
   </React.StrictMode>
 );
