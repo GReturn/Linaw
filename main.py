@@ -277,7 +277,7 @@ Word1, Word2, Word3
         )
 
 
-# ─── Progressive loading endpoints ────────────────────────────────────────────
+# Progressive loading endpoints 
 
 @app.post("/api/define-only")
 async def define_word_only(request: DefinitionOnlyRequest):

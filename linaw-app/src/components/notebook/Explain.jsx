@@ -175,6 +175,13 @@ const Explain = ({
                                         {definition.translated_context}
                                     </p>
                                 </div>
+                            ) : definition && !definition.translated_context ? (
+                                <div className="bg-red-50 border border-red-100 rounded-xl p-4 transition-all duration-300 flex items-center gap-2">
+                                    <AlertCircle size={14} className="text-red-400" />
+                                    <p className="text-xs text-red-500 font-medium tracking-wide">
+                                        Translation unavailable.
+                                    </p>
+                                </div>
                             ) : null}
                         </>
                     )}
