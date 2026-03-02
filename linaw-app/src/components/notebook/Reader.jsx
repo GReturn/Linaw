@@ -1,5 +1,5 @@
 import React from 'react';
-import { FileText, ZoomIn, ZoomOut, ChevronLeft, ChevronRight } from 'lucide-react';
+import { FileText, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, Check, X, Sparkles } from 'lucide-react';
 import { Document, Page } from 'react-pdf';
 
 const Reader = ({
@@ -12,7 +12,10 @@ const Reader = ({
     setNumPages,
     pageNumber,
     setPageNumber,
-    handleTextSelection
+    handleTextSelection,
+    pendingWord,
+    onConfirmSelection,
+    onCancelSelection,
 }) => {
     return (
         <main className={`${mobileView === 'reader' ? 'flex' : 'hidden'} md:flex flex-1 flex-col bg-[#F8FAFC] relative`}>
@@ -49,6 +52,31 @@ const Reader = ({
                     )}
                 </div>
             </div>
+
+            {/* Floating confirm pill — appears when user highlights text */}
+            {pendingWord && (
+                <div
+                    className="absolute left-1/2 -translate-x-1/2 flex items-center gap-3 py-2.5 px-5 bg-[#3DBDB4] shadow-2xl rounded-full z-20 text-white animate-[fadeSlideUp_0.2s_ease-out]"
+                    style={{ bottom: numPages ? '5rem' : '2rem' }}
+                >
+                    <Sparkles size={14} className="opacity-70 shrink-0" />
+                    <span className="text-xs font-bold truncate max-w-[200px]" title={pendingWord}>
+                        "{pendingWord}"
+                    </span>
+                    <button
+                        onClick={onConfirmSelection}
+                        className="flex items-center gap-1 px-3 py-1 bg-white/20 hover:bg-white/30 rounded-full text-[11px] font-bold transition-all"
+                    >
+                        <Check size={12} /> Define
+                    </button>
+                    <button
+                        onClick={onCancelSelection}
+                        className="flex items-center gap-1 px-2 py-1 hover:bg-white/15 rounded-full text-[11px] font-bold opacity-70 hover:opacity-100 transition-all"
+                    >
+                        <X size={12} />
+                    </button>
+                </div>
+            )}
 
             {numPages && (
                 <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-4 py-2 px-6 bg-[#2D3748] shadow-xl rounded-full z-10 text-white">
