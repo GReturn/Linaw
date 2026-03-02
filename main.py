@@ -44,6 +44,8 @@ confusion_terms_store = ["Accusamus", "Ducimus", "Blanditiis"]
 class DefinitionRequest(BaseModel):
     word: str
     context: Optional[str] = None
+    include_translation: bool = True
+    target_language: str = "Cebuano (Bisaya)"
 
 class DefinitionResponse(BaseModel):
     word: str
@@ -103,10 +105,16 @@ async def get_confusion_terms():
 @app.post("/api/define")
 async def define_word(request: DefinitionRequest):
     # Prompting for raw strings to fit your existing fields
+    translation_instruction = ""
+    if request.include_translation:
+        translation_instruction = f"1. A translation and explanation in {request.target_language} with a sample sentence."
+    else:
+        translation_instruction = "1. (Leave this section completely blank with just a space)"
+
     prompt = f"""
-    Explain the word "{request.word}".
+    Explain the word or phrase "{request.word}".
     Provide exactly two paragraphs:
-    1. A translation and explanation in Cebuano (Bisaya) with a sample sentence.
+    {translation_instruction}
     2. A formal English definition.
     Then, list 3 words often confused with it, separated by commas.
     Separate these three sections with '---'.
@@ -123,13 +131,13 @@ async def define_word(request: DefinitionRequest):
         parts = raw_output.split("---")
 
         # Extracting strings or providing fallbacks to keep the backend stable
-        cebuano = parts[0].strip() if len(parts) > 0 else "Walay hubad."
+        target_lang_context = parts[0].strip() if len(parts) > 0 and request.include_translation else ""
         english = parts[1].strip() if len(parts) > 1 else "No definition."
         confused = [w.strip() for w in parts[2].split(",")] if len(parts) > 2 else []
 
         return DefinitionResponse(
             word=request.word,
-            cebuano_context=cebuano,
+            cebuano_context=target_lang_context,
             english_definition=english,
             confused_with=confused
         )
