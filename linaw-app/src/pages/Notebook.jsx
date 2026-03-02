@@ -217,7 +217,7 @@ const InteractiveReader = () => {
         console.log(`[N-gram] Suggesting correction: "${original}" → "${suggestion}"`);
       } else {
         // Auto-accept the best candidate (or original if no suggestion)
-        const finalWord = suggestion || original;
+        const finalWord = original;
         setHighlightSuggestion(null);
         setSelectedWord(finalWord);
         await addToHistory(finalWord);
