@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Book, FileText, Sparkles } from 'lucide-react';
 import { pdfjs } from 'react-pdf';
+import { doc, getDoc } from 'firebase/firestore';
 
 // Core Styles
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 
-import { auth } from "../services/firebase";
+import { auth, db } from "../services/firebase";
 import { notebookService } from "../services/notebookService";
 
 import Dictionary from '../components/notebook/Dictionary';
@@ -46,9 +47,14 @@ const InteractiveReader = () => {
   useEffect(() => {
     const loadInitialData = async () => {
       try {
-        if (id) {
-          const notebookData = await notebookService.getNotebook(id);
-          setNotebook(notebookData);
+        // load notebook title directly from Firestore
+        if (id && auth.currentUser) {
+          const notebookSnap = await getDoc(
+            doc(db, "users", auth.currentUser.uid, "notebooks", id)
+          );
+          if (notebookSnap.exists()) {
+            setNotebook({ title: notebookSnap.data().title });
+          }
         }
 
         const historyData = await notebookService.getHistory();
@@ -111,11 +117,17 @@ const InteractiveReader = () => {
       const docs = await notebookService.getDocuments(user.uid, id);
       setDocuments(docs);
       if (docs.length > 0) {
-        setCurrentFile(docs[0].fileURL);
+        setCurrentFile(docs[0].filePath);  // filePath is the Firebase Storage download URL
       }
     } catch (error) {
       console.error('Error loading documents:', error);
     }
+  };
+
+  const handleDocumentSwitch = (fileUrl) => {
+    setPageNumber(1);
+    setNumPages(null);
+    setCurrentFile(fileUrl);
   };
 
   const handleFileUpload = async (event) => {
@@ -176,10 +188,8 @@ const InteractiveReader = () => {
       finalSelection = words.slice(0, 2).join(" ");
     }
 
-    // Update selected word state
     setSelectedWord(finalSelection);
 
-    // Add to history list
     await addToHistory(finalSelection);
 
     if (window.innerWidth < 768) {
@@ -208,7 +218,7 @@ const InteractiveReader = () => {
         navigate={navigate}
         documents={documents}
         history={history}
-        setCurrentFile={setCurrentFile}
+        setCurrentFile={handleDocumentSwitch}
         handleFileUpload={handleFileUpload}
         handleHistoryItemClick={handleHistoryItemClick}
       />

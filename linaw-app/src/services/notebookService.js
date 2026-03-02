@@ -1,6 +1,41 @@
-import { collection, addDoc, getDocs, serverTimestamp } from "firebase/firestore";
-import { db, auth } from "../services/firebase";
+import { collection, addDoc, getDocs, serverTimestamp, deleteDoc, doc } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { db, storage } from "../services/firebase";
 import api from './api';
+import { v4 as uuidv4 } from 'uuid';
+
+export const createNotebook = async (userId, title) => {
+  const notebooksRef = collection(db, "users", userId, "notebooks");
+  const docRef = await addDoc(notebooksRef, {
+    title: title.trim(),
+    createdAt: serverTimestamp(),
+  });
+
+  const notebookPath = ["users", userId, "notebooks", docRef.id];
+
+  await addDoc(collection(db, ...notebookPath, "dictionary"), {
+    _placeholder: true,
+    term: "",
+    definition: "",
+    language: "",
+    example: "",
+    image_url: "",
+    image_source: "",
+    attribution: "",
+    createdAt: serverTimestamp(),
+    lastAccessed: serverTimestamp(),
+  });
+
+  await addDoc(collection(db, ...notebookPath, "documents"), {
+    _placeholder: true,
+    fileName: "",
+    filePath: "",
+    uploadDate: serverTimestamp(),
+  });
+
+  return { id: docRef.id, title };
+};
+
 
 export const notebookService = {
   getNotebook: async (id) => {
@@ -31,15 +66,16 @@ export const notebookService = {
     return response.data.history;
   },
 
+
+
   getDocuments: async (userId, notebookId) => {
     const querySnapshot = await getDocs(
       collection(db, "users", userId, "notebooks", notebookId, "documents")
     );
 
-    return querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
+    return querySnapshot.docs
+      .map(doc => ({ id: doc.id, ...doc.data() }))
+      .filter(doc => !doc._placeholder);  // exclude initialisation placeholder
   },
 
   uploadDocument: async (file, notebookId, userId) => {
@@ -62,12 +98,12 @@ export const notebookService = {
     const docRef = await addDoc(
       collection(db, "users", userId, "notebooks", notebookId, "documents"),
       {
-        fileName: data.fileName,
-        fileURL: data.fileURL,
-        uploadDate: serverTimestamp()
+        fileName: file.name,
+        filePath: data.fileURL,
+        uploadDate: serverTimestamp(),
       }
     );
 
-    return { id: docRef.id, fileName: data.fileName, fileURL: data.fileURL };
+    return { id: docRef.id, fileName: file.name, filePath: data.fileURL };
   }
 };
