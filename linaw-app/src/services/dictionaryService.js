@@ -13,13 +13,22 @@ import { doc, getDoc, setDoc, collection, getDocs, orderBy, query, serverTimesta
  * @param {string} language     - Target language (default: "cebuano")
  * @returns {object}            - Definition data matching DefinitionResponse shape
  */
-export const getExplanation = async (userId, notebookId, term, language = "cebuano") => {
-  const termKey = `${term.toLowerCase().trim()}_${language.toLowerCase()}`;
-  const globalDocRef = doc(db, 'global_dictionary', termKey);
+export const getExplanation = async (userId, notebookId, term, language = "ceb") => {
+  const termKey = term.toLowerCase().trim().replace(/\s+/g, "_");
+  const langKey = language.toLowerCase();
+  //const globalDocRef = doc(db, 'global_dictionary', termKey);
+
+  const globalTranslationRef = doc(
+    db,
+    "global_dictionary",
+    termKey,
+    "translations",
+    langKey
+  );
 
   try {
     // --- STEP 1: Check the global dictionary first (cache hit = free) ---
-    const globalDocSnap = await getDoc(globalDocRef);
+    const globalDocSnap = await getDoc(globalTranslationRef);
 
     let definitionData = null;
 
@@ -41,25 +50,49 @@ export const getExplanation = async (userId, notebookId, term, language = "cebua
       };
 
       // Save to global dictionary so the NEXT user gets a cache hit
-      await setDoc(globalDocRef, definitionData);
+      await setDoc(globalTranslationRef, definitionData);
       console.log(`[GlobalDict] Saved mock definition for "${termKey}" to global_dictionary`);
     }
 
     // --- STEP 3: Record in the user's personal notebook dictionary history ---
     if (userId && notebookId) {
-      const userDictRef = doc(db, 'users', userId, 'notebooks', notebookId, 'dictionary', termKey);
-      await setDoc(userDictRef, {
+
+      const wordDocRef = doc(
+        db,
+        "users",
+        userId,
+        "notebooks",
+        notebookId,
+        "dictionary",
+        termKey
+      );
+
+      await setDoc(wordDocRef, {
+        lastAccessed: serverTimestamp()
+      }, { merge: true });
+
+      const localTranslationRef = doc(
+        db,
+        "users",
+        userId,
+        "notebooks",
+        notebookId,
+        "dictionary",
+        termKey,
+        "translations",
+        langKey
+      );
+
+      await setDoc(localTranslationRef, {
         ...definitionData,
-        term: term,
-        language: language,
-        lastAccessed: serverTimestamp(),
+        lastAccessed: serverTimestamp()
       }, { merge: true });
     }
 
     return definitionData;
 
   } catch (error) {
-    console.error('[GlobalDict] Error fetching explanation:', error);
+    console.error("Dictionary error:", error);
     return null;
   }
 };
@@ -77,13 +110,14 @@ export const getHistory = async (userId, notebookId) => {
 
   try {
     const dictRef = collection(db, 'users', userId, 'notebooks', notebookId, 'dictionary');
-    const q = query(dictRef, orderBy('lastAccessed', 'desc'));
-    const snapshot = await getDocs(q);
+    //const q = query(dictRef, orderBy('lastAccessed', 'desc'));
+    const snapshot = await getDocs(dictRef);
 
     return snapshot.docs
-      .map(doc => doc.data())
-      .filter(d => d.term && !d._placeholder)  // exclude placeholders
-      .map(d => d.term);
+      .map(doc => doc.id)
+      //.map(doc => doc.data())
+      // .filter(d => d.term && !d._placeholder)  // exclude placeholders
+      // .map(d => d.term);
 
   } catch (error) {
     console.error('[GlobalDict] Error fetching history:', error);
