@@ -95,7 +95,8 @@ const InteractiveReader = () => {
         const definitionData = await notebookService.getDefinition(
           auth.currentUser.uid,
           id,
-          selectedWord
+          selectedWord,
+          targetLanguage
         );
         setDefinition(definitionData);
         setError(null);
