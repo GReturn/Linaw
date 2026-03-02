@@ -123,7 +123,7 @@ async def upload_source(
 
 USE_MOCK = False  # Set to False when you actually want to use Gemini
 
-CACHE_VERSION = "v2"  # Bump this to invalidate old stale cache entries
+CACHE_VERSION = "v3"  # Bump this to invalidate old stale cache entries
 
 @app.post("/api/define")
 async def define_word(request: DefinitionRequest):
@@ -186,16 +186,21 @@ async def define_word(request: DefinitionRequest):
         "Bikolano (BIK)": "bcl_Latn"
     }
 
+    context_instruction = ""
+    if request.context:
+        context_instruction = f'\nThe word appears in this context: "{request.context}"\nUse this context to provide a definition specific to how the word is used here.\n'
+
     prompt = f"""
 You are a dictionary assistant. For the word or phrase "{request.word}":
+{context_instruction}
+Provide a formal English definition in exactly one paragraph.
+Then, provide exactly 3 words or phrases often confused with it, separated by commas only.
 
-SECTION 1 - ENGLISH DEFINITION:
-Provide exactly one paragraph with a formal English definition.
-
-SECTION 2 - CONFUSED WORDS:
-List exactly 3 words or phrases often confused with "{request.word}", separated by commas only.
-
-Format your response as exactly two sections separated by '---' on its own line. Do not include section headers.
+CRITICAL: Format your output as exactly two parts separated by three hyphens "---" on a new line. Do NOT output any headings like "SECTION 1".
+Example format:
+This is the definition paragraph.
+---
+Word1, Word2, Word3
 """
 
     try:
