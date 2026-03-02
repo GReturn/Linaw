@@ -1,9 +1,11 @@
+import os
 from pathlib import Path
 
 from google import genai
+import httpx
 import uvicorn
 from dotenv import load_dotenv
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
@@ -12,6 +14,9 @@ env_path = Path('.') / 'linaw-app' / '.env'
 load_dotenv(dotenv_path=env_path)
 
 client = genai.Client()
+
+# Modal translator URL — set in .env or fall back to a default
+TRANSLATOR_URL = os.getenv("TRANSLATOR_URL", "https://spongebobrafael--linaw-translator-fastapi-app-dev.modal.run")
 
 response = client.models.generate_content(
     model="gemini-3-flash-preview",
@@ -53,6 +58,11 @@ class NotebookRequest(BaseModel):
 
 class AddToHistoryRequest(BaseModel):
     word: str
+
+class TranslateProxyRequest(BaseModel):
+    text: str
+    target_lang: str = "tgl_Latn"
+    provider: str = "nllb"
 
 @app.get("/")
 async def root():
@@ -132,6 +142,24 @@ async def define_word(request: DefinitionRequest):
             english_definition=f"Error: {str(e)}",
             confused_with=[]
         )
+
+
+@app.post("/api/translate")
+async def translate_proxy(request: TranslateProxyRequest):
+    """Proxies translation requests to the Modal translator service."""
+    try:
+        async with httpx.AsyncClient() as http_client:
+            resp = await http_client.post(
+                f"{TRANSLATOR_URL}/translate",
+                json=request.model_dump(),
+                timeout=30.0
+            )
+            resp.raise_for_status()
+        return resp.json()
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(status_code=e.response.status_code, detail="Translation service error")
+    except httpx.RequestError:
+        raise HTTPException(status_code=503, detail="Translation service unavailable")
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
