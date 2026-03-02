@@ -130,41 +130,21 @@ async def define_word(request: DefinitionRequest):
 
     word_key = request.word.lower().strip()
 
-    lang_map = {
-        "Tagalog (TGL)": "tgl",
-        "Cebuano (CEB)": "ceb",
-        "Waray (WAR)": "war",
-        "Ilocano (ILO)": "ilo",
-        "Pangasinense (PAG)": "pag",
-        "Hiligaynon (HIL)": "hil",
-        "Bikolano (BIK)": "bik"
-    }
-    
-    # Default to ceb if not found, or None if "None (EN)"
-    lang_code = lang_map.get(request.target_language)
-    
-    if lang_code:
-        translation_ref = (
-            db.collection("global_dictionary")
-            .document(word_key)
-            .collection("translations")
-            .document(lang_code)
+    # Short-circuit immediately when mock mode is on — skip Firestore entirely
+    if USE_MOCK:
+        return DefinitionResponse(
+            word=request.word,
+            cebuano_context=f"Kini usa ka mock explanation para sa {request.word} para dili mahurot ang imong quota.",
+            english_definition=f"This is a mock definition for {request.word} to save your API credits.",
+            confused_with=["Mock1", "Mock2", "Mock3"]
         )
-        cached_doc = translation_ref.get()
-    else:
-        cached_doc = None
-        translation_ref = None
 
-    # Check global dict cache — only use if it has the current cache version
-    if cached_doc and cached_doc.exists:
-        data = cached_doc.to_dict()
-        if data.get("cache_version") == CACHE_VERSION:
-            return DefinitionResponse(
-                word=word_key,
-                translated_context=data.get("translated_context", ""),
-                english_definition=data["english_definition"],
-                confused_with=data["confused_with"]
-            )
+    translation_ref = (
+        db.collection("global_dictionary")
+        .document(word_key)
+        .collection("translations")
+        .document("ceb")
+    )
 
     # Map UI language to NLLB codes for the translator service
     nllb_lang_map = {
@@ -177,11 +157,16 @@ async def define_word(request: DefinitionRequest):
         "Bikolano (BIK)": "bcl_Latn"
     }
 
-    prompt = f"""
-You are a dictionary assistant. For the word or phrase "{request.word}":
+    # Check global dict
+    if doc.exists:
+        data = doc.to_dict()
+        return DefinitionResponse(
+            word=word_key,
+            cebuano_context=data["cebuano_context"],
+            english_definition=data["english_definition"],
+            confused_with=data["confused_with"]
+        )
 
-SECTION 1 - ENGLISH DEFINITION:
-Provide exactly one paragraph with a formal English definition.
 
 SECTION 2 - CONFUSED WORDS:
 List exactly 3 words or phrases often confused with "{request.word}", separated by commas only.

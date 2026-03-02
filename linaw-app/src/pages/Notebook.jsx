@@ -10,6 +10,7 @@ import 'react-pdf/dist/Page/TextLayer.css';
 
 import { auth, db } from "../services/firebase";
 import { notebookService } from "../services/notebookService";
+import { validateSelection, TOO_MANY_WORDS_MESSAGE } from "../services/selectionValidator";
 
 import Dictionary from '../components/notebook/Dictionary';
 import Reader from '../components/notebook/Reader';
@@ -43,7 +44,6 @@ const InteractiveReader = () => {
 
   // API States
   const [history, setHistory] = useState([]);
-  const [confusionTerms, setConfusionTerms] = useState([]);
   const [definition, setDefinition] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -52,7 +52,6 @@ const InteractiveReader = () => {
   useEffect(() => {
     const loadInitialData = async () => {
       try {
-        // load notebook title directly from Firestore
         if (id && auth.currentUser) {
           const notebookSnap = await getDoc(
             doc(db, "users", auth.currentUser.uid, "notebooks", id)
@@ -60,10 +59,11 @@ const InteractiveReader = () => {
           if (notebookSnap.exists()) {
             setNotebook({ title: notebookSnap.data().title });
           }
-        }
 
-        const historyData = await notebookService.getHistory();
-        setHistory(historyData);
+          // Load history from Firestore (persisted, not in-memory)
+          const historyData = await notebookService.getHistory(auth.currentUser.uid, id);
+          setHistory(historyData);
+        }
       } catch (err) {
         console.error('Error loading initial data:', err);
         setError('Failed to load initial data');
@@ -86,11 +86,16 @@ const InteractiveReader = () => {
   // Fetch definition when word is selected
   useEffect(() => {
     const fetchDefinition = async () => {
-      if (!selectedWord) return;
+      if (!selectedWord || !auth.currentUser) return;
 
       setLoading(true);
       try {
-        const definitionData = await notebookService.getDefinition(selectedWord, targetLanguage);
+        // Checks Firebase global_dictionary first; falls back to mock (TODO: Gemini)
+        const definitionData = await notebookService.getDefinition(
+          auth.currentUser.uid,
+          id,
+          selectedWord
+        );
         setDefinition(definitionData);
         if (definitionData?.confused_with?.length > 0) {
           setConfusionTerms(definitionData.confused_with);
@@ -107,13 +112,16 @@ const InteractiveReader = () => {
     fetchDefinition();
   }, [selectedWord, targetLanguage]);
 
-  // Add word to history
-  const addToHistory = async (word) => {
+  // History is recorded as a side-effect inside getDefinition (via dictionaryService).
+  // This function just re-fetches the latest list from Firestore to refresh the sidebar.
+  const addToHistory = async () => {
     try {
-      const historyData = await notebookService.addToHistory(word);
-      setHistory(historyData);
+      if (auth.currentUser && id) {
+        const historyData = await notebookService.getHistory(auth.currentUser.uid, id);
+        setHistory(historyData);
+      }
     } catch (err) {
-      console.error('Error adding to history:', err);
+      console.error('Error refreshing history:', err);
     }
   };
 
@@ -183,6 +191,14 @@ const InteractiveReader = () => {
 
     if (words.length === 0) return;
 
+    // Shared validation: rejects phrases longer than MAX_WORD_COUNT
+    const { valid } = validateSelection(expanded);
+    if (!valid) {
+      setError(TOO_MANY_WORDS_MESSAGE);
+      setTimeout(() => setError(null), 3500);
+      return;
+    }
+
     // Use all expanded words (no artificial clipping)
     const finalSelection = words.join(" ");
 
@@ -221,7 +237,8 @@ const InteractiveReader = () => {
         const finalWord = original;
         setHighlightSuggestion(null);
         setSelectedWord(finalWord);
-        await addToHistory(finalWord);
+        // History is recorded inside getDefinition; just refresh the sidebar after
+        await addToHistory();
       }
 
       if (window.innerWidth < 768) {
@@ -231,7 +248,7 @@ const InteractiveReader = () => {
       console.error("Semantic worker failed, bypassing gate:", err);
       setHighlightSuggestion(null);
       setSelectedWord(finalSelection);
-      await addToHistory(finalSelection);
+      await addToHistory();
     } finally {
       setLoading(false);
     }
@@ -242,19 +259,19 @@ const InteractiveReader = () => {
     const { suggestion } = highlightSuggestion;
     setSelectedWord(suggestion);
     setHighlightSuggestion(null);
-    await addToHistory(suggestion);
+    await addToHistory();
   };
 
   const dismissSuggestion = async () => {
     if (!highlightSuggestion) return;
     const { original } = highlightSuggestion;
     setHighlightSuggestion(null);
-    await addToHistory(original);
+    await addToHistory();
   };
 
   const handleHistoryItemClick = async (term) => {
     setSelectedWord(term);
-    await addToHistory(term);
+    // Definition lookup (and thus history recording) triggered by selectedWord effect
   };
 
   // Pre-initialize the Semantic Worker on mount
@@ -305,7 +322,7 @@ const InteractiveReader = () => {
         loading={loading}
         selectedWord={selectedWord}
         definition={definition}
-        confusionTerms={confusionTerms}
+        confusionTerms={definition?.confused_with ?? []}
         handleHistoryItemClick={handleHistoryItemClick}
         highlightSuggestion={highlightSuggestion}
         onAcceptSuggestion={acceptSuggestion}
