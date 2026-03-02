@@ -7,11 +7,6 @@ const SkeletonBlock = ({ className = "" }) => (
 
 const DefinitionSkeleton = () => (
     <div className="flex flex-col gap-4">
-        {/* Active term skeleton */}
-        <div className="bg-[#FFD93C]/40 rounded-xl p-5">
-            <SkeletonBlock className="h-2.5 w-16 mb-2 !bg-[#2D3748]/10 !rounded-md" />
-            <SkeletonBlock className="h-5 w-32 !bg-[#2D3748]/15 !rounded-md" />
-        </div>
         {/* Translation skeleton */}
         <div className="border border-gray-100 rounded-xl p-4">
             <div className="flex items-center gap-2 mb-3">
@@ -50,6 +45,7 @@ const Explain = ({
     mobileView,
     loading,
     isDefining,
+    isTranslating,
     selectedWord,
     pendingWord,
     definition,
@@ -143,29 +139,51 @@ const Explain = ({
                 </div>
             )}
 
+            {/* Active Term — Show immediately if we have a selected word, even if loading */}
+            {selectedWord && (
+                <div className="bg-[#FFD93C] rounded-xl p-5 shadow-sm">
+                    <p className="text-[10px] font-black text-[#2D3748]/40 uppercase tracking-widest mb-1">Active Term</p>
+                    <h2 className="text-xl font-black text-[#2D3748]">{selectedWord}</h2>
+                </div>
+            )}
+
             {/* Definition loading skeleton (post-confirm) */}
             {isDefining && <DefinitionSkeleton />}
 
             {/* Content — only show when NOT loading the definition */}
             {!isDefining && (
                 <>
-                    {selectedWord && (
-                        <div className="bg-[#FFD93C] rounded-xl p-5 shadow-sm">
-                            <p className="text-[10px] font-black text-[#2D3748]/40 uppercase tracking-widest mb-1">Active Term</p>
-                            <h2 className="text-xl font-black text-[#2D3748]">{selectedWord}</h2>
-                        </div>
-                    )}
-
-                    {definition && definition.translated_context && targetLanguage !== "None (EN)" && (
-                        <div className="bg-white border border-[#3DBDB4]/20 rounded-xl p-4">
-                            <div className="flex items-center gap-2 mb-2">
-                                <span className="w-5 h-5 flex items-center justify-center bg-[#3DBDB4] text-white rounded text-[9px] font-black">{langAbbr}</span>
-                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{targetLanguage.split(' ')[0]} Context</span>
-                            </div>
-                            <p className="text-sm text-gray-700 leading-relaxed font-medium italic">
-                                {definition.translated_context}
-                            </p>
-                        </div>
+                    {/* Translation Section (Phase 2) */}
+                    {targetLanguage !== "None (EN)" && (
+                        <>
+                            {isTranslating ? (
+                                <div className="border border-gray-100 rounded-xl p-4">
+                                    <div className="flex items-center gap-2 mb-3">
+                                        <SkeletonBlock className="h-5 w-5 !rounded" />
+                                        <SkeletonBlock className="h-2.5 w-24 !rounded-md" />
+                                    </div>
+                                    <SkeletonBlock className="h-3 w-full mb-2 !rounded-md" />
+                                    <SkeletonBlock className="h-3 w-3/4 !rounded-md" />
+                                </div>
+                            ) : definition && definition.translated_context ? (
+                                <div className="bg-white border border-[#3DBDB4]/20 rounded-xl p-4 transition-all duration-300">
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <span className="w-5 h-5 flex items-center justify-center bg-[#3DBDB4] text-white rounded text-[9px] font-black">{langAbbr}</span>
+                                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{targetLanguage.split(' ')[0]} Context</span>
+                                    </div>
+                                    <p className="text-sm text-gray-700 leading-relaxed font-medium italic">
+                                        {definition.translated_context}
+                                    </p>
+                                </div>
+                            ) : definition && !definition.translated_context ? (
+                                <div className="bg-red-50 border border-red-100 rounded-xl p-4 transition-all duration-300 flex items-center gap-2">
+                                    <AlertCircle size={14} className="text-red-400" />
+                                    <p className="text-xs text-red-500 font-medium tracking-wide">
+                                        Translation unavailable.
+                                    </p>
+                                </div>
+                            ) : null}
+                        </>
                     )}
 
                     {definition && (
