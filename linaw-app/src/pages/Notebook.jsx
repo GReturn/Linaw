@@ -38,6 +38,7 @@ const InteractiveReader = () => {
   // PDF State
   const [selectedWord, setSelectedWord] = useState("");
   const [pendingWord, setPendingWord] = useState("");
+  const [selectedContext, setSelectedContext] = useState("");
   const [highlightSuggestion, setHighlightSuggestion] = useState(null);
   const [numPages, setNumPages] = useState(null);
   const [pageNumber, setPageNumber] = useState(1);
@@ -91,12 +92,13 @@ const InteractiveReader = () => {
 
       setLoading(true);
       try {
-        // Checks Firebase global_dictionary first; falls back to mock (TODO: Gemini)
+        // Checks Firebase global_dictionary first; calls backend API on miss
         const definitionData = await notebookService.getDefinition(
           auth.currentUser.uid,
           id,
           selectedWord,
-          targetLanguage
+          targetLanguage,
+          selectedContext
         );
         setDefinition(definitionData);
         setError(null);
@@ -204,6 +206,7 @@ const InteractiveReader = () => {
     // N-gram correction: gather surrounding context from the PDF text layer
     const { extractContextFromDOM, findBestCandidate } = await import('../services/ngramCorrector.js');
     const contextText = extractContextFromDOM(range);
+    setSelectedContext(contextText);  // Store context for Gemini prompt
     const { original, suggestion } = findBestCandidate(finalSelection, contextText);
 
     // Determine which text to gate-check (suggestion will be offered separately)
