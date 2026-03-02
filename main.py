@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
-
+from firebase_config import db
+from google.cloud.firestore import SERVER_TIMESTAMP
 from google import genai
 import httpx
 import uvicorn
@@ -9,6 +10,10 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
+from fastapi import UploadFile, File, Form
+import uuid
+from fastapi.staticfiles import StaticFiles
+import os
 
 env_path = Path('.') / 'linaw-app' / '.env'
 load_dotenv(dotenv_path=env_path)
@@ -18,14 +23,12 @@ client = genai.Client()
 # Modal translator URL — set in .env or fall back to a default
 TRANSLATOR_URL = os.getenv("TRANSLATOR_URL", "https://spongebobrafael--linaw-translator-fastapi-app-dev.modal.run")
 
-response = client.models.generate_content(
-    model="gemini-3-flash-preview",
-    contents="Explain how AI works in a few words",
-)
-
-print(response.text)
-
 app = FastAPI()
+
+UPLOAD_DIR = "uploads"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 # Configure CORS
 app.add_middleware(
@@ -101,9 +104,59 @@ async def get_confusion_terms():
     # Return the in-memory confusion terms store
     return confusion_terms_store
 
+@app.post("/sources/upload")
+async def upload_source(
+    notebook_id: str = Form(...),
+    user_id: str = Form(...),
+    file: UploadFile = File(...)
+):
+    unique_filename = f"{uuid.uuid4()}_{file.filename}"
+    file_location = os.path.join(UPLOAD_DIR, unique_filename)
+
+    content = await file.read()
+    with open(file_location, "wb") as f:
+        f.write(content)
+
+    return {
+    "fileName": file.filename,
+    "fileURL": f"http://localhost:8000/uploads/{unique_filename}"
+}
+
+USE_MOCK = True  # Set to False when you actually want to use Gemini
 
 @app.post("/api/define")
 async def define_word(request: DefinitionRequest):
+
+    word_key = request.word.lower().strip()
+
+    translation_ref = (
+        db.collection("global_dictionary")
+        .document(word_key)
+        .collection("translations")
+        .document("ceb")
+    )
+
+    doc = translation_ref.get()
+
+    #check global dict first
+    if doc.exists:
+        data = doc.to_dict()
+        return DefinitionResponse(
+            word=word_key,
+            cebuano_context=data["cebuano_context"],
+            english_definition=data["english_definition"],
+            confused_with=data["confused_with"]
+        )
+
+    #then check mock
+    if USE_MOCK:
+        return DefinitionResponse(
+            word=request.word,
+            cebuano_context=f"Kini usa ka mock explanation para sa {request.word} para dili mahurot ang imong quota.",
+            english_definition=f"This is a mock definition for {request.word} to save your API credits.",
+            confused_with=["Mock1", "Mock2", "Mock3"]
+        )
+
     # Prompting for raw strings to fit your existing fields
     translation_instruction = ""
     if request.include_translation:
@@ -135,6 +188,15 @@ async def define_word(request: DefinitionRequest):
         english = parts[1].strip() if len(parts) > 1 else "No definition."
         confused = [w.strip() for w in parts[2].split(",")] if len(parts) > 2 else []
 
+        # TODO: Change the variable names
+        translation_ref.set({
+            "cebuano_context": target_lang_context,
+            "english_definition": english,
+            "confused_with": confused,
+            "createdAt": SERVER_TIMESTAMP
+        })
+
+        # TODO: Change the variable names
         return DefinitionResponse(
             word=request.word,
             cebuano_context=target_lang_context,

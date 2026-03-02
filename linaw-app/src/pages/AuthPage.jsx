@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import "./AuthPage.css";
 import { auth } from "../services/firebase";
 import {
@@ -8,6 +9,8 @@ import {
 } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
 import { db } from "../services/firebase";
+import { createNotebook } from "../services/notebookService";
+
 
 export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
@@ -15,12 +18,14 @@ export default function AuthPage() {
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
 
+  const navigate = useNavigate();
+
   const handleSubmit = async () => {
     try {
       if (isLogin) {
         // LOGIN
         await signInWithEmailAndPassword(auth, email, password);
-        alert("Logged in successfully!");
+        navigate("/");
       } else {
         // REGISTER
         const userCredential = await createUserWithEmailAndPassword(
@@ -36,13 +41,17 @@ export default function AuthPage() {
           displayName: fullName
         });
 
+        // Save user document
         await setDoc(doc(db, "users", user.uid), {
           name: fullName,
           email: email,
           createdAt: new Date()
         });
 
-        alert("Account created!");
+
+        await createNotebook(user.uid, "Getting Started");
+
+        navigate("/");
       }
     } catch (error) {
       alert(error.message);

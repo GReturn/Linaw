@@ -44,4 +44,6 @@ pyvenv.cfg
 .venv
 pip-selfcheck.json
 
-serviceAccountKey.json
+**/serviceAccountKey.json
+
+__pycache__
