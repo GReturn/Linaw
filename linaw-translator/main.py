@@ -137,8 +137,29 @@ class Translator:
 @web_app.post("/translate", response_model=TranslationResponse)
 async def translate_endpoint(request: TranslationRequest):
     """
-    Translates text by calling the chosen provider.
+    Translates text by calling the chosen provider, applying routing rules.
     """
+    from fastapi import HTTPException
+    
+    supported_langs = {
+        "tgl_Latn", "ceb_Latn", "war_Latn", "pag_Latn", "ilo_Latn",
+        "hil_Latn", "bcl_Latn"
+    }
+    
+    if request.target_lang not in supported_langs:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Unsupported target language: {request.target_lang}. Supported are 7 Philippine languages."
+        )
+        
+    word_count = len(request.text.split())
+    
+    # NLLB loses precision over 100 words -> transfer to Gemini
+    if word_count > 100 or request.target_lang in {"hil_Latn", "bcl_Latn"}:
+        request.provider = "gemini"
+    else:
+        request.provider = "nllb"
+        
     from providers.factory import get_provider
     provider_instance = get_provider(request.provider)
     result = await provider_instance.translate(request.text, target_lang=request.target_lang)
