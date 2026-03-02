@@ -163,8 +163,19 @@ async def translate_endpoint(request: TranslationRequest):
         request.provider = "nllb"
         
     from providers.factory import get_provider
-    provider_instance = get_provider(request.provider)
-    result = await provider_instance.translate(request.text, target_lang=request.target_lang)
+    try:
+        provider_instance = get_provider(request.provider)
+        result = await provider_instance.translate(request.text, target_lang=request.target_lang)
+    except Exception as e:
+        print(f"Primary provider {request.provider} failed: {e}")
+        # If Gemini fails, fallback to NLLB (which is local/unlimited)
+        if request.provider == "gemini":
+            print("Falling back to NLLB...")
+            nllb_provider = get_provider("nllb")
+            result = await nllb_provider.translate(request.text, target_lang=request.target_lang)
+        else:
+            raise HTTPException(status_code=500, detail=f"Translation failed: {str(e)}")
+            
     return TranslationResponse(translated_text=result)
 
 @web_app.get("/health")
@@ -178,7 +189,7 @@ async def root_redirect():
     return RedirectResponse(url="/docs")
 
 # Expose the FastAPI app to the internet via Modal
-@app.function(image=image)
+@app.function(image=image, secrets=[modal.Secret.from_name("gemini-key")])
 @modal.asgi_app()
 def fastapi_app():
     return web_app
