@@ -8,8 +8,8 @@ export default defineConfig({
     rollupOptions: {
       input: {
         // Just use the relative paths directly
-        main: 'index.html', 
-        sidepanel: 'sidepanel.html', 
+        main: 'index.html',
+        sidepanel: 'sidepanel.html',
       },
     },
   },

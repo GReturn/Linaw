@@ -1,8 +1,6 @@
-import { collection, addDoc, getDocs, serverTimestamp, deleteDoc, doc } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { db, storage } from "../services/firebase";
-import api from './api';
-import { v4 as uuidv4 } from 'uuid';
+import { collection, addDoc, getDocs, serverTimestamp, doc } from "firebase/firestore";
+import { db } from "../services/firebase";
+import { getExplanation, getHistory as fetchHistory } from './dictionaryService';
 
 export const createNotebook = async (userId, title) => {
   const notebooksRef = collection(db, "users", userId, "notebooks");
@@ -38,32 +36,30 @@ export const createNotebook = async (userId, title) => {
 
 
 export const notebookService = {
-  getNotebook: async (id) => {
-    const response = await api.get(`/api/notebook/${id}`);
-    return response.data;
+  /**
+   * Fetches the definition for a term.
+   * Checks Firebase global_dictionary first; falls back to mock (TODO: Gemini).
+   * Also records the lookup in the user's personal notebook dictionary.
+   */
+  getDefinition: async (userId, notebookId, word, language = "cebuano") => {
+    return getExplanation(userId, notebookId, word, language);
   },
 
-  getHistory: async () => {
-    const response = await api.get('/api/history');
-    return response.data;
+  /**
+   * Returns the user's recently looked-up terms for this notebook,
+   * ordered by most recently accessed. Persisted in Firestore.
+   */
+  getHistory: async (userId, notebookId) => {
+    return fetchHistory(userId, notebookId);
   },
 
-  getConfusionTerms: async () => {
-    const response = await api.get('/api/confusion-terms');
-    return response.data;
-  },
-
-  getDefinition: async (word) => {
-    const response = await api.post('/api/define', {
-      word,
-      context: "legal document"
-    });
-    return response.data;
-  },
-
-  addToHistory: async (word) => {
-    const response = await api.post('/api/history/add', { word });
-    return response.data.history;
+  /**
+   * No-op: history is recorded automatically inside getDefinition.
+   * Kept for call-site compatibility during transition.
+   */
+  addToHistory: async (_userId, _notebookId, _word) => {
+    // Side-effect handled by getExplanation → no separate call needed
+    return [];
   },
 
 

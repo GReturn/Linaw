@@ -20,8 +20,7 @@ load_dotenv(dotenv_path=env_path)
 
 client = genai.Client()
 
-# Modal translator URL — set in .env or fall back to a default
-TRANSLATOR_URL = os.getenv("TRANSLATOR_URL", "https://spongebobrafael--linaw-translator-fastapi-app-dev.modal.run")
+TRANSLATOR_URL = "https://spongebobrafael--linaw-translator-fastapi-app.modal.run"
 
 app = FastAPI()
 
@@ -47,7 +46,7 @@ class DefinitionRequest(BaseModel):
 
 class DefinitionResponse(BaseModel):
     word: str
-    cebuano_context: str
+    translated_context: str
     english_definition: str
     confused_with: List[str]
 
@@ -135,12 +134,23 @@ async def upload_source(
         "fileURL": file_url
     }
     
-USE_MOCK = True  # Set to False when you actually want to use Gemini
+USE_MOCK = False  # Set to False when you actually want to use Gemini
+
+CACHE_VERSION = "v2"  # Bump this to invalidate old stale cache entries
 
 @app.post("/api/define")
 async def define_word(request: DefinitionRequest):
 
     word_key = request.word.lower().strip()
+
+    # Short-circuit immediately when mock mode is on — skip Firestore entirely
+    if USE_MOCK:
+        return DefinitionResponse(
+            word=request.word,
+            cebuano_context=f"Kini usa ka mock explanation para sa {request.word} para dili mahurot ang imong quota.",
+            english_definition=f"This is a mock definition for {request.word} to save your API credits.",
+            confused_with=["Mock1", "Mock2", "Mock3"]
+        )
 
     translation_ref = (
         db.collection("global_dictionary")
@@ -149,9 +159,18 @@ async def define_word(request: DefinitionRequest):
         .document("ceb")
     )
 
-    doc = translation_ref.get()
+    # Map UI language to NLLB codes for the translator service
+    nllb_lang_map = {
+        "Tagalog (TGL)": "tgl_Latn",
+        "Cebuano (CEB)": "ceb_Latn",
+        "Waray (WAR)": "war_Latn",
+        "Ilocano (ILO)": "ilo_Latn",
+        "Pangasinense (PAG)": "pag_Latn",
+        "Hiligaynon (HIL)": "hil_Latn",
+        "Bikolano (BIK)": "bcl_Latn"
+    }
 
-    #check global dict first
+    # Check global dict
     if doc.exists:
         data = doc.to_dict()
         return DefinitionResponse(
@@ -161,67 +180,66 @@ async def define_word(request: DefinitionRequest):
             confused_with=data["confused_with"]
         )
 
-    #then check mock
-    if USE_MOCK:
-        return DefinitionResponse(
-            word=request.word,
-            cebuano_context=f"Kini usa ka mock explanation para sa {request.word} para dili mahurot ang imong quota.",
-            english_definition=f"This is a mock definition for {request.word} to save your API credits.",
-            confused_with=["Mock1", "Mock2", "Mock3"]
-        )
-
-    # Prompting for raw strings to fit your existing fields
-    translation_instruction = ""
-    if request.include_translation:
-        translation_instruction = f"1. A translation and explanation in {request.target_language} with a sample sentence."
-    else:
-        translation_instruction = "1. (Leave this section completely blank with just a space)"
-
     prompt = f"""
-    Explain the word or phrase "{request.word}".
-    Provide exactly two paragraphs:
-    {translation_instruction}
-    2. A formal English definition.
-    Then, list 3 words often confused with it, separated by commas.
-    Separate these three sections with '---'.
+    You are a dictionary assistant. For the word or phrase "{request.word}":
+    SECTION 1 - ENGLISH DEFINITION:
+    Provide exactly one paragraph with a formal English definition.
+    SECTION 2 - CONFUSED WORDS:
+    List exactly 3 words or phrases often confused with "{request.word}", separated by commas only.
+
+    Format your response as exactly two sections separated by '---' on its own line. Do not include section headers.
     """
 
     try:
         response = client.models.generate_content(
-            model="gemini-3-flash-preview",
+            model="gemini-2.5-flash",
             contents=prompt,
         )
 
-        # Split the raw string back into the parts your return statement needs
+        # Split the raw string back into the parts
         raw_output = response.text
         parts = raw_output.split("---")
 
-        # Extracting strings or providing fallbacks to keep the backend stable
-        target_lang_context = parts[0].strip() if len(parts) > 0 and request.include_translation else ""
-        english = parts[1].strip() if len(parts) > 1 else "No definition."
-        confused = [w.strip() for w in parts[2].split(",")] if len(parts) > 2 else []
+        english = parts[0].strip() if len(parts) > 0 else "No definition."
+        confused = [w.strip() for w in parts[1].split(",")] if len(parts) > 1 else []
 
-        # TODO: Change the variable names
-        translation_ref.set({
-            "cebuano_context": target_lang_context,
-            "english_definition": english,
-            "confused_with": confused,
-            "createdAt": SERVER_TIMESTAMP
-        })
+        # Translate the English definition via the Modal translator API
+        target_lang_context = ""
+        if request.include_translation:
+            nllb_code = nllb_lang_map.get(request.target_language)
+            if nllb_code:
+                try:
+                    async with httpx.AsyncClient() as http_client:
+                        resp = await http_client.post(
+                            f"{TRANSLATOR_URL}/translate",
+                            json={"text": english, "target_lang": nllb_code, "provider": "nllb"},
+                            timeout=120.0  # Long timeout to handle Gemini→NLLB fallback cold starts
+                        )
+                        resp.raise_for_status()
+                        target_lang_context = resp.json().get("translated_text", "")
+                except Exception as translate_err:
+                    print(f"Translation failed ({type(translate_err).__name__}), skipping: {translate_err}")
 
-        # TODO: Change the variable names
+        if translation_ref:
+            translation_ref.set({
+                "translated_context": target_lang_context,
+                "english_definition": english,
+                "confused_with": confused,
+                "cache_version": CACHE_VERSION,
+                "createdAt": SERVER_TIMESTAMP
+            })
+
         return DefinitionResponse(
             word=request.word,
-            cebuano_context=target_lang_context,
+            translated_context=target_lang_context,
             english_definition=english,
             confused_with=confused
         )
 
     except Exception as e:
-        # If the API fails, we still return the structure so the frontend doesn't break
         return DefinitionResponse(
             word=request.word,
-            cebuano_context="Sayop sa pagkonektar sa AI.",
+            translated_context="",
             english_definition=f"Error: {str(e)}",
             confused_with=[]
         )
@@ -231,10 +249,25 @@ async def define_word(request: DefinitionRequest):
 async def translate_proxy(request: TranslateProxyRequest):
     """Proxies translation requests to the Modal translator service."""
     try:
+        # Map UI dropdown format to NLLB format
+        lang_map = {
+            "Tagalog (TGL)": "tgl_Latn",
+            "Cebuano (CEB)": "ceb_Latn",
+            "Waray (WAR)": "war_Latn",
+            "Ilocano (ILO)": "ilo_Latn",
+            "Pangasinense (PAG)": "pag_Latn",
+            "Hiligaynon (HIL)": "hil_Latn",
+            "Bikolano (BIK)": "bcl_Latn"
+        }
+        
+        target_lang = lang_map.get(request.target_lang, request.target_lang)
+        payload = request.model_dump()
+        payload["target_lang"] = target_lang
+
         async with httpx.AsyncClient() as http_client:
             resp = await http_client.post(
                 f"{TRANSLATOR_URL}/translate",
-                json=request.model_dump(),
+                json=payload,
                 timeout=30.0
             )
             resp.raise_for_status()

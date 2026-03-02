@@ -3,7 +3,13 @@
   "name": "Linaw",
   "version": "1.0",
   "permissions": [
-    "sidePanel"
+    "sidePanel",
+    "storage",
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "<all_urls>"
   ],
   "background": {
     "service_worker": "background.js"
@@ -11,6 +17,16 @@
   "side_panel": {
     "default_path": "sidepanel.html"
   },
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "content.js"
+      ]
+    }
+  ],
   "icons": {
     "16": "favicon.ico",
     "48": "favicon.ico",
