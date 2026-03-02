@@ -64,9 +64,6 @@ const InteractiveReader = () => {
 
         const historyData = await notebookService.getHistory();
         setHistory(historyData);
-
-        const confusionData = await notebookService.getConfusionTerms();
-        setConfusionTerms(confusionData);
       } catch (err) {
         console.error('Error loading initial data:', err);
         setError('Failed to load initial data');
@@ -95,6 +92,9 @@ const InteractiveReader = () => {
       try {
         const definitionData = await notebookService.getDefinition(selectedWord, targetLanguage);
         setDefinition(definitionData);
+        if (definitionData?.confused_with?.length > 0) {
+          setConfusionTerms(definitionData.confused_with);
+        }
         setError(null);
       } catch (err) {
         console.error('Error fetching definition:', err);
