@@ -31,3 +31,5 @@ Thumbs.db
 coverage/
 
 **/serviceAccountKey.json
+
+__pycache__
