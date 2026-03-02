@@ -2,14 +2,22 @@
   "manifest_version": 3,
   "name": "Linaw",
   "version": "1.0",
-  "permissions": ["sidePanel"],
+  "permissions": [
+    "sidePanel"
+  ],
   "background": {
     "service_worker": "background.js"
   },
   "side_panel": {
     "default_path": "sidepanel.html"
   },
+  "icons": {
+    "16": "favicon.ico",
+    "48": "favicon.ico",
+    "128": "favicon.ico"
+  },
   "action": {
-    "default_title": "Click to open panel"
+    "default_icon": "favicon.ico",
+    "default_title": "Linaw"
   }
 }
