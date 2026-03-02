@@ -111,7 +111,7 @@ async def upload_source(
     "fileURL": f"http://localhost:8000/uploads/{unique_filename}"
 }
 
-USE_MOCK = False  # Set to False when you actually want to use Gemini
+USE_MOCK = True  # Set to False when you actually want to use Gemini
 
 @app.post("/api/define")
 async def define_word(request: DefinitionRequest):
