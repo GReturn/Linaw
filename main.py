@@ -129,6 +129,15 @@ async def define_word(request: DefinitionRequest):
 
     word_key = request.word.lower().strip()
 
+    # Short-circuit immediately when mock mode is on — skip Firestore entirely
+    if USE_MOCK:
+        return DefinitionResponse(
+            word=request.word,
+            cebuano_context=f"Kini usa ka mock explanation para sa {request.word} para dili mahurot ang imong quota.",
+            english_definition=f"This is a mock definition for {request.word} to save your API credits.",
+            confused_with=["Mock1", "Mock2", "Mock3"]
+        )
+
     translation_ref = (
         db.collection("global_dictionary")
         .document(word_key)
@@ -138,7 +147,7 @@ async def define_word(request: DefinitionRequest):
 
     doc = translation_ref.get()
 
-    #check global dict first
+    # Check global dict
     if doc.exists:
         data = doc.to_dict()
         return DefinitionResponse(
@@ -148,14 +157,6 @@ async def define_word(request: DefinitionRequest):
             confused_with=data["confused_with"]
         )
 
-    #then check mock
-    if USE_MOCK:
-        return DefinitionResponse(
-            word=request.word,
-            cebuano_context=f"Kini usa ka mock explanation para sa {request.word} para dili mahurot ang imong quota.",
-            english_definition=f"This is a mock definition for {request.word} to save your API credits.",
-            confused_with=["Mock1", "Mock2", "Mock3"]
-        )
 
     # Prompting for raw strings to fit your existing fields
     translation_instruction = ""
