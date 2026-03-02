@@ -1,57 +1,92 @@
 // src/services/dictionaryService.js
 import { db } from './firebase';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, getDocs, orderBy, query, serverTimestamp } from 'firebase/firestore';
 
+/**
+ * Looks up a term in the Firebase global dictionary.
+ * If not found, falls back to a mocked definition and saves it globally
+ * so the next lookup is instant for all users.
+ *
+ * @param {string} userId       - Current user's UID (for personal history)
+ * @param {string} notebookId   - Current notebook ID (for personal history)
+ * @param {string} term         - The highlighted term
+ * @param {string} language     - Target language (default: "cebuano")
+ * @returns {object}            - Definition data matching DefinitionResponse shape
+ */
 export const getExplanation = async (userId, notebookId, term, language = "cebuano") => {
-  const termKey = `${term.toLowerCase()}_${language.toLowerCase()}`;
+  const termKey = `${term.toLowerCase().trim()}_${language.toLowerCase()}`;
   const globalDocRef = doc(db, 'global_dictionary', termKey);
 
   try {
-    // check global dictionary (saves cost)
+    // --- STEP 1: Check the global dictionary first (cache hit = free) ---
     const globalDocSnap = await getDoc(globalDocRef);
 
-    let dictionaryData = null;
+    let definitionData = null;
 
     if (globalDocSnap.exists()) {
-      console.log("Found in Global Dictionary!");
-      dictionaryData = globalDocSnap.data();
+      console.log(`[GlobalDict] Cache hit for "${termKey}"`);
+      definitionData = globalDocSnap.data();
     } else {
-      console.log("Not found globally. Calling SEA-LION LLM...");
-      
-      // fallback: call LLM API here
-      // const response = await callSeaLionAPI(term, language);
-      
-      // mocking the LLM response for now:
-      dictionaryData = {
+      console.log(`[GlobalDict] Cache miss for "${termKey}". Using mock fallback.`);
+
+      // --- STEP 2: Fallback — TODO: Replace this mock with a real Gemini/SEA-LION API call ---
+      definitionData = {
         term: term,
         language: language,
-        simple_definition: "Mock Cebuano definition here...",
-        advanced_definition: "Mock English definition...",
-        example: "Sample sentence...",
-        image_url: "https://example.com/image.png",
-        image_source: "Wikimedia",
-        attribution: "CC BY 4.0",
+        cebuano_context: `Kini usa ka mock explanation para sa "${term}". Palihug pun-a kini og tinuod nga kahulugan.`,
+        english_definition: `This is a mock definition for "${term}". A developer will replace this with a real GenAI response.`,
+        confused_with: ["MockTermA", "MockTermB", "MockTermC"],
         createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
+        updatedAt: serverTimestamp(),
       };
 
-      // save to global dictionary for the next person
-      await setDoc(globalDocRef, dictionaryData);
+      // Save to global dictionary so the NEXT user gets a cache hit
+      await setDoc(globalDocRef, definitionData);
+      console.log(`[GlobalDict] Saved mock definition for "${termKey}" to global_dictionary`);
     }
 
-    // save to the specific User's personal dictionary history
+    // --- STEP 3: Record in the user's personal notebook dictionary history ---
     if (userId && notebookId) {
       const userDictRef = doc(db, 'users', userId, 'notebooks', notebookId, 'dictionary', termKey);
       await setDoc(userDictRef, {
-        ...dictionaryData,
-        lastAccessed: serverTimestamp()
+        ...definitionData,
+        term: term,
+        language: language,
+        lastAccessed: serverTimestamp(),
       }, { merge: true });
     }
 
-    return dictionaryData;
+    return definitionData;
 
   } catch (error) {
-    console.error("Error fetching explanation:", error);
+    console.error('[GlobalDict] Error fetching explanation:', error);
     return null;
+  }
+};
+
+/**
+ * Fetches the user's personal dictionary history for a given notebook,
+ * ordered by most recently accessed.
+ *
+ * @param {string} userId
+ * @param {string} notebookId
+ * @returns {Array<string>}  - List of term strings
+ */
+export const getHistory = async (userId, notebookId) => {
+  if (!userId || !notebookId) return [];
+
+  try {
+    const dictRef = collection(db, 'users', userId, 'notebooks', notebookId, 'dictionary');
+    const q = query(dictRef, orderBy('lastAccessed', 'desc'));
+    const snapshot = await getDocs(q);
+
+    return snapshot.docs
+      .map(doc => doc.data())
+      .filter(d => d.term && !d._placeholder)  // exclude placeholders
+      .map(d => d.term);
+
+  } catch (error) {
+    console.error('[GlobalDict] Error fetching history:', error);
+    return [];
   }
 };
