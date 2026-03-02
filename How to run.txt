@@ -12,6 +12,7 @@ pip install fastapi
 pip install uvicorn
 pip install python-multipart
 pip install -U google-genai
+pip install firebase-admin
 
 # 3. INSTALL FRONTEND DEPENDENCIES (in new terminal)
 cd linaw-app
