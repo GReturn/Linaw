@@ -52,7 +52,7 @@ class DefinitionRequest(BaseModel):
 
 class DefinitionResponse(BaseModel):
     word: str
-    cebuano_context: str
+    translated_context: str
     english_definition: str
     confused_with: List[str]
 
@@ -129,30 +129,51 @@ async def define_word(request: DefinitionRequest):
 
     word_key = request.word.lower().strip()
 
-    translation_ref = (
-        db.collection("global_dictionary")
-        .document(word_key)
-        .collection("translations")
-        .document("ceb")
-    )
-
-    doc = translation_ref.get()
+    # Map the dropdown string to a language code
+    lang_map = {
+        "Tagalog (TGL)": "tgl",
+        "Cebuano (CEB)": "ceb",
+        "Waray (WAR)": "war",
+        "Ilocano (ILO)": "ilo",
+        "Pangasinense (PAG)": "pag",
+        "Hiligaynon (HIL)": "hil",
+        "Bikolano (BIK)": "bik"
+    }
+    
+    # Default to ceb if not found, or None if "None (EN)"
+    lang_code = lang_map.get(request.target_language)
+    
+    if lang_code:
+        translation_ref = (
+            db.collection("global_dictionary")
+            .document(word_key)
+            .collection("translations")
+            .document(lang_code)
+        )
+        doc = translation_ref.get()
+    else:
+        doc = None
+        translation_ref = None
 
     #check global dict first
-    if doc.exists:
+    if doc and doc.exists:
         data = doc.to_dict()
         return DefinitionResponse(
             word=word_key,
-            cebuano_context=data["cebuano_context"],
+            translated_context=data.get("translated_context", data.get("cebuano_context", "")), # fallback for old data
             english_definition=data["english_definition"],
             confused_with=data["confused_with"]
         )
 
     #then check mock
     if USE_MOCK:
+        mock_context = ""
+        if request.include_translation:
+            mock_context = f"Kini usa ka mock explanation para sa {request.word} para dili mahurot ang imong quota."
+            
         return DefinitionResponse(
             word=request.word,
-            cebuano_context=f"Kini usa ka mock explanation para sa {request.word} para dili mahurot ang imong quota.",
+            translated_context=mock_context,
             english_definition=f"This is a mock definition for {request.word} to save your API credits.",
             confused_with=["Mock1", "Mock2", "Mock3"]
         )
@@ -188,18 +209,17 @@ async def define_word(request: DefinitionRequest):
         english = parts[1].strip() if len(parts) > 1 else "No definition."
         confused = [w.strip() for w in parts[2].split(",")] if len(parts) > 2 else []
 
-        # TODO: Change the variable names
-        translation_ref.set({
-            "cebuano_context": target_lang_context,
-            "english_definition": english,
-            "confused_with": confused,
-            "createdAt": SERVER_TIMESTAMP
-        })
+        if translation_ref:
+            translation_ref.set({
+                "translated_context": target_lang_context,
+                "english_definition": english,
+                "confused_with": confused,
+                "createdAt": SERVER_TIMESTAMP
+            })
 
-        # TODO: Change the variable names
         return DefinitionResponse(
             word=request.word,
-            cebuano_context=target_lang_context,
+            translated_context=target_lang_context,
             english_definition=english,
             confused_with=confused
         )
@@ -208,7 +228,7 @@ async def define_word(request: DefinitionRequest):
         # If the API fails, we still return the structure so the frontend doesn't break
         return DefinitionResponse(
             word=request.word,
-            cebuano_context="Sayop sa pagkonektar sa AI.",
+            translated_context="Sayop sa pagkonektar sa AI.",
             english_definition=f"Error: {str(e)}",
             confused_with=[]
         )

@@ -53,10 +53,12 @@ export const notebookService = {
     return response.data;
   },
 
-  getDefinition: async (word) => {
+  getDefinition: async (word, targetLanguage) => {
     const response = await api.post('/api/define', {
       word,
-      context: "legal document"
+      context: "legal document",
+      target_language: targetLanguage,
+      include_translation: targetLanguage !== "None (EN)"
     });
     return response.data;
   },
