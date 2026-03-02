@@ -27,7 +27,7 @@ export const createNotebook = async (userId, title) => {
   await addDoc(collection(db, ...notebookPath, "documents"), {
     _placeholder: true,
     fileName: "",
-    filePath: "",
+    fileURL: "",
     uploadDate: serverTimestamp(),
   });
 
@@ -105,15 +105,6 @@ export const notebookService = {
 
     const data = await response.json();
 
-    const docRef = await addDoc(
-      collection(db, "users", userId, "notebooks", notebookId, "documents"),
-      {
-        fileName: file.name,
-        filePath: data.fileURL,
-        uploadDate: serverTimestamp(),
-      }
-    );
-
-    return { id: docRef.id, fileName: file.name, filePath: data.fileURL };
+    return { id: docRef.id, fileName: file.name, fileURL: data.fileURL };
   }
 };

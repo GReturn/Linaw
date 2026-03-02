@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Book, FileText, Sparkles } from 'lucide-react';
 import { pdfjs } from 'react-pdf';
 import { doc, getDoc } from 'firebase/firestore';
+import { collection, onSnapshot } from "firebase/firestore";
 
 // Core Styles
 import 'react-pdf/dist/Page/AnnotationLayer.css';
@@ -74,16 +75,6 @@ const InteractiveReader = () => {
     };
 
     loadInitialData();
-  }, [id]);
-
-  useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((user) => {
-      if (user && id) {
-        loadDocuments(user);
-      }
-    });
-
-    return () => unsubscribe();
   }, [id]);
 
   // Ref to track what word we just fetched for, so language changes don't nuke the definition
@@ -178,17 +169,36 @@ const InteractiveReader = () => {
     }
   };
 
-  const loadDocuments = async (user) => {
-    try {
-      const docs = await notebookService.getDocuments(user.uid, id);
-      setDocuments(docs);
-      if (docs.length > 0) {
-        setCurrentFile(docs[0].filePath);  // filePath is the Firebase Storage download URL
-      }
-    } catch (error) {
-      console.error('Error loading documents:', error);
-    }
-  };
+  useEffect(() => {
+    if (!id) return;
+
+    let unsubscribeDocs = null;
+
+    const unsubscribeAuth = auth.onAuthStateChanged((user) => {
+      if (!user) return;
+
+      unsubscribeDocs = onSnapshot(
+        collection(db, "users", user.uid, "notebooks", id, "documents"),
+        (snapshot) => {
+          const docs = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }));
+
+          setDocuments(docs);
+
+          // if (docs.length > 0) {
+          //   setCurrentFile(prev => prev || docs[0].fileURL);
+          // }
+        }
+      );
+    });
+
+    return () => {
+      if (unsubscribeDocs) unsubscribeDocs();
+      unsubscribeAuth();
+    };
+  }, [id]);
 
   const handleDocumentSwitch = (fileUrl) => {
     setPageNumber(1);
@@ -201,8 +211,30 @@ const InteractiveReader = () => {
     if (!file) return;
 
     try {
-      await notebookService.uploadDocument(file, id, auth.currentUser.uid);
-      await loadDocuments(auth.currentUser);
+      const uploadedDoc = await notebookService.uploadDocument(
+        file,
+        id,
+        auth.currentUser.uid
+      );
+
+      const handleFileUpload = async (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  try {
+    const uploadedDoc = await notebookService.uploadDocument(
+      file,
+      id,
+      auth.currentUser.uid
+    );
+
+    setCurrentFile(uploadedDoc.fileURL);
+
+  } catch (error) {
+    console.error("UPLOAD ERROR:", error);
+  }
+};
+
     } catch (error) {
       console.error("UPLOAD ERROR:", error);
     }

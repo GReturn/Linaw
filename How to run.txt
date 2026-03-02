@@ -12,13 +12,11 @@ pip install fastapi
 pip install uvicorn
 pip install python-multipart
 pip install -U google-genai
-pip install firebase-admin
 
 # 3. INSTALL FRONTEND DEPENDENCIES (in new terminal)
 cd linaw-app
 npm install axios
-npm install uuid
-npm install --save-dev @types/uuid
+npm install @xenova/transformers
 
 # 4. START BACKEND SERVER (in first terminal, venv activated)
 uvicorn main:app --reload

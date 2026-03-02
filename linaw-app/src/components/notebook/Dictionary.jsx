@@ -53,7 +53,7 @@ const Dictionary = ({
                         {documents.map((doc) => (
                             <button
                                 key={doc.id}
-                                onClick={() => setCurrentFile(doc.filePath)}
+                                onClick={() => setCurrentFile(doc.fileURL)}
                                 className="p-3 bg-[#3DBDB4]/5 border border-[#3DBDB4]/20 rounded-lg flex items-center gap-3 w-full"
                             >
                                 <div className="p-2 bg-white rounded shadow-sm text-[#3DBDB4]">
