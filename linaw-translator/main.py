@@ -63,6 +63,7 @@ web_app = FastAPI(title="Linaw Translator API", version="1.0.0")
 class TranslationRequest(BaseModel):
     text: str
     target_lang: str = "tgl_Latn"
+    provider: str = "nllb"
 
 class TranslationResponse(BaseModel):
     translated_text: str
@@ -85,7 +86,6 @@ class Translator:
         print("Model loaded successfully!")
 
     @modal.method()
-    @modal.concurrent(10)
     def translate(self, text: str, target_lang: str = "tgl_Latn") -> str:
         """The actual inference logic, preserving paragraphs."""
         import nltk
@@ -137,12 +137,11 @@ class Translator:
 @web_app.post("/translate", response_model=TranslationResponse)
 async def translate_endpoint(request: TranslationRequest):
     """
-    Translates text by calling the Modal Translator class.
+    Translates text by calling the chosen provider.
     """
-    # Instantiate the modal class to trigger inference
-    # Modal handles routing this to a hot container if available
-    translator_instance = Translator()
-    result = translator_instance.translate.remote(request.text, target_lang=request.target_lang)
+    from providers.factory import get_provider
+    provider_instance = get_provider(request.provider)
+    result = await provider_instance.translate(request.text, target_lang=request.target_lang)
     return TranslationResponse(translated_text=result)
 
 @web_app.get("/health")
