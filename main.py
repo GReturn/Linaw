@@ -166,40 +166,58 @@ async def define_word(request: DefinitionRequest):
                 confused_with=data["confused_with"]
             )
 
-    #then check mock
-    if USE_MOCK:
-        mock_context = ""
-        if request.include_translation:
-            mock_context = f"Kini usa ka mock explanation para sa {request.word} para dili mahurot ang imong quota."
-            
-        return DefinitionResponse(
-            word=request.word,
-            translated_context=mock_context,
-            english_definition=f"This is a mock definition for {request.word} to save your API credits.",
-            confused_with=["Mock1", "Mock2", "Mock3"]
-        )
+    # Map UI language to NLLB codes for the translator service
+    nllb_lang_map = {
+        "Tagalog (TGL)": "tgl_Latn",
+        "Cebuano (CEB)": "ceb_Latn",
+        "Waray (WAR)": "war_Latn",
+        "Ilocano (ILO)": "ilo_Latn",
+        "Pangasinense (PAG)": "pag_Latn",
+        "Hiligaynon (HIL)": "hil_Latn",
+        "Bikolano (BIK)": "bcl_Latn"
+    }
 
     prompt = f"""
-    Explain the word or phrase "{request.word}".
-    Provide exactly one paragraph using a formal English definition.
-    Then, list 3 words often confused with it, separated by commas.
-    Separate these two sections with '---'.
-    """
+You are a dictionary assistant. For the word or phrase "{request.word}":
+
+SECTION 1 - ENGLISH DEFINITION:
+Provide exactly one paragraph with a formal English definition.
+
+SECTION 2 - CONFUSED WORDS:
+List exactly 3 words or phrases often confused with "{request.word}", separated by commas only.
+
+Format your response as exactly two sections separated by '---' on its own line. Do not include section headers.
+"""
 
     try:
         response = client.models.generate_content(
-            model="gemini-3-flash-preview",
+            model="gemini-2.5-flash",
             contents=prompt,
         )
 
-        # Split the raw string back into the parts your return statement needs
+        # Split the raw string back into the parts
         raw_output = response.text
         parts = raw_output.split("---")
 
-        # Extracting strings or providing fallbacks to keep the backend stable
-        target_lang_context = parts[0].strip() if len(parts) > 0 and request.include_translation else ""
-        english = parts[1].strip() if len(parts) > 1 else "No definition."
-        confused = [w.strip() for w in parts[2].split(",")] if len(parts) > 2 else []
+        english = parts[0].strip() if len(parts) > 0 else "No definition."
+        confused = [w.strip() for w in parts[1].split(",")] if len(parts) > 1 else []
+
+        # Translate the English definition via the Modal translator API
+        target_lang_context = ""
+        if request.include_translation:
+            nllb_code = nllb_lang_map.get(request.target_language)
+            if nllb_code:
+                try:
+                    async with httpx.AsyncClient() as http_client:
+                        resp = await http_client.post(
+                            f"{TRANSLATOR_URL}/translate",
+                            json={"text": english, "target_lang": nllb_code, "provider": "nllb"},
+                            timeout=120.0  # Long timeout to handle Gemini→NLLB fallback cold starts
+                        )
+                        resp.raise_for_status()
+                        target_lang_context = resp.json().get("translated_text", "")
+                except Exception as translate_err:
+                    print(f"Translation failed ({type(translate_err).__name__}), skipping: {translate_err}")
 
         if translation_ref:
             translation_ref.set({
