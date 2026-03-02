@@ -37,6 +37,7 @@ const InteractiveReader = () => {
 
   // PDF State
   const [selectedWord, setSelectedWord] = useState("");
+  const [pendingWord, setPendingWord] = useState("");
   const [highlightSuggestion, setHighlightSuggestion] = useState(null);
   const [numPages, setNumPages] = useState(null);
   const [pageNumber, setPageNumber] = useState(1);
@@ -97,9 +98,6 @@ const InteractiveReader = () => {
           selectedWord
         );
         setDefinition(definitionData);
-        if (definitionData?.confused_with?.length > 0) {
-          setConfusionTerms(definitionData.confused_with);
-        }
         setError(null);
       } catch (err) {
         console.error('Error fetching definition:', err);
@@ -223,22 +221,18 @@ const InteractiveReader = () => {
       const isMeaningful = await isSemanticallyDefinable(textToCheck);
       if (!isMeaningful) {
         console.log(`[WordGate] Rejected meaningless phrase: "${textToCheck}"`);
+        setPendingWord("");
         return;
       }
 
-      // Both gates passed!
+      // Both gates passed — set as pending (user must confirm)
       if (suggestion && ENABLE_NGRAM_SUGGESTIONS) {
-        // Show suggestion banner instead of proceeding immediately
         setHighlightSuggestion({ original, suggestion });
-        setSelectedWord(original);
+        setPendingWord(original);
         console.log(`[N-gram] Suggesting correction: "${original}" → "${suggestion}"`);
       } else {
-        // Auto-accept the best candidate (or original if no suggestion)
-        const finalWord = original;
         setHighlightSuggestion(null);
-        setSelectedWord(finalWord);
-        // History is recorded inside getDefinition; just refresh the sidebar after
-        await addToHistory();
+        setPendingWord(original);
       }
 
       if (window.innerWidth < 768) {
@@ -254,22 +248,36 @@ const InteractiveReader = () => {
     }
   };
 
-  const acceptSuggestion = async () => {
+  const acceptSuggestion = () => {
     if (!highlightSuggestion) return;
     const { suggestion } = highlightSuggestion;
-    setSelectedWord(suggestion);
+    setPendingWord(suggestion);
     setHighlightSuggestion(null);
-    await addToHistory();
   };
 
   const dismissSuggestion = async () => {
     if (!highlightSuggestion) return;
-    const { original } = highlightSuggestion;
+    setHighlightSuggestion(null);
+  };
+
+  // Confirm pending selection → triggers definition fetch
+  const confirmSelection = async () => {
+    if (!pendingWord) return;
+    setSelectedWord(pendingWord);
+    setPendingWord("");
     setHighlightSuggestion(null);
     await addToHistory();
   };
 
+  // Cancel pending selection
+  const cancelSelection = () => {
+    setPendingWord("");
+    setHighlightSuggestion(null);
+  };
+
   const handleHistoryItemClick = async (term) => {
+    setPendingWord("");
+    setDefinition(null);
     setSelectedWord(term);
     // Definition lookup (and thus history recording) triggered by selectedWord effect
   };
@@ -314,13 +322,18 @@ const InteractiveReader = () => {
         pageNumber={pageNumber}
         setPageNumber={setPageNumber}
         handleTextSelection={handleTextSelection}
+        pendingWord={pendingWord}
+        onConfirmSelection={confirmSelection}
+        onCancelSelection={cancelSelection}
       />
 
       {/* --- RIGHT SIDEBAR: Explain AI --- */}
       <Explain
         mobileView={mobileView}
         loading={loading}
+        isDefining={loading}
         selectedWord={selectedWord}
+        pendingWord={pendingWord}
         definition={definition}
         confusionTerms={definition?.confused_with ?? []}
         handleHistoryItemClick={handleHistoryItemClick}
