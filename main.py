@@ -129,7 +129,6 @@ async def define_word(request: DefinitionRequest):
 
     word_key = request.word.lower().strip()
 
-    # Map the dropdown string to a language code
     lang_map = {
         "Tagalog (TGL)": "tgl",
         "Cebuano (CEB)": "ceb",
@@ -178,20 +177,11 @@ async def define_word(request: DefinitionRequest):
             confused_with=["Mock1", "Mock2", "Mock3"]
         )
 
-    # Prompting for raw strings to fit your existing fields
-    translation_instruction = ""
-    if request.include_translation:
-        translation_instruction = f"1. A translation and explanation in {request.target_language} with a sample sentence."
-    else:
-        translation_instruction = "1. (Leave this section completely blank with just a space)"
-
     prompt = f"""
     Explain the word or phrase "{request.word}".
-    Provide exactly two paragraphs:
-    {translation_instruction}
-    2. A formal English definition.
+    Provide exactly one paragraph using a formal English definition.
     Then, list 3 words often confused with it, separated by commas.
-    Separate these three sections with '---'.
+    Separate these two sections with '---'.
     """
 
     try:
@@ -238,10 +228,25 @@ async def define_word(request: DefinitionRequest):
 async def translate_proxy(request: TranslateProxyRequest):
     """Proxies translation requests to the Modal translator service."""
     try:
+        # Map UI dropdown format to NLLB format
+        lang_map = {
+            "Tagalog (TGL)": "tgl_Latn",
+            "Cebuano (CEB)": "ceb_Latn",
+            "Waray (WAR)": "war_Latn",
+            "Ilocano (ILO)": "ilo_Latn",
+            "Pangasinense (PAG)": "pag_Latn",
+            "Hiligaynon (HIL)": "hil_Latn",
+            "Bikolano (BIK)": "bcl_Latn"
+        }
+        
+        target_lang = lang_map.get(request.target_lang, request.target_lang)
+        payload = request.model_dump()
+        payload["target_lang"] = target_lang
+
         async with httpx.AsyncClient() as http_client:
             resp = await http_client.post(
                 f"{TRANSLATOR_URL}/translate",
-                json=request.model_dump(),
+                json=payload,
                 timeout=30.0
             )
             resp.raise_for_status()
