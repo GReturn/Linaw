@@ -50,7 +50,17 @@ const Explain = ({
                             <span className="w-5 h-5 flex items-center justify-center bg-[#2D3748] text-white rounded text-[9px] font-black">EN</span>
                             <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">English Definition</span>
                         </div>
-                        <Volume2 size={14} className="text-gray-300 cursor-pointer hover:text-[#3DBDB4]" />
+                       <Volume2
+                              size={14}
+                              className="text-gray-300 cursor-pointer hover:text-[#3DBDB4]"
+                              onClick={() => {
+                                if (definition?.english_definition) {
+                                  const utterance = new SpeechSynthesisUtterance(definition.english_definition);
+                                  utterance.lang = 'en-US';
+                                  window.speechSynthesis.speak(utterance);
+                                }
+                              }}
+                            />
                     </div>
                     <p className="text-sm text-gray-600 leading-relaxed">
                         {definition.english_definition}
