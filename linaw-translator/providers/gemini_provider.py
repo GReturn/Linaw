@@ -18,7 +18,7 @@ class GeminiProvider(TranslationProvider):
         lang_name = LANG_NAMES.get(target_lang, target_lang)
 
         response = client.models.generate_content(
-            model="gemini-2.0-flash",
+            model="gemini-2.5-flash",
             contents=f"Translate the following text to {lang_name}. Return only the translation, nothing else.\n\n{text}",
         )
 
