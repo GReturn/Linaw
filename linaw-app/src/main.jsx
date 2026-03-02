@@ -4,6 +4,7 @@
     import Home from './pages/Home';
     import InteractiveReader from './components/Notebook';
     import './index.css';
+    import AuthPage from "./pages/AuthPage";
 
     ReactDOM.createRoot(document.getElementById('root')).render(
       <React.StrictMode>
@@ -11,6 +12,7 @@
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/notebook/:id" element={<InteractiveReader />} />
+            <Route path="/auth" element={<AuthPage />} />
           </Routes>
         </BrowserRouter>
       </React.StrictMode>

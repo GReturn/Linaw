@@ -6,6 +6,8 @@ import {
   signInWithEmailAndPassword,
   updateProfile
 } from "firebase/auth";
+import { doc, setDoc } from "firebase/firestore";
+import { db } from "../services/firebase";
 
 export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
@@ -27,9 +29,17 @@ export default function AuthPage() {
           password
         );
 
+        const user = userCredential.user;
+
         // Save full name
         await updateProfile(userCredential.user, {
           displayName: fullName
+        });
+
+        await setDoc(doc(db, "users", user.uid), {
+          name: fullName,
+          email: email,
+          createdAt: new Date()
         });
 
         alert("Account created!");
