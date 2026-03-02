@@ -1,10 +1,12 @@
+import os
 from pathlib import Path
 from firebase_config import db
 from google.cloud.firestore import SERVER_TIMESTAMP
 from google import genai
+import httpx
 import uvicorn
 from dotenv import load_dotenv
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
@@ -18,6 +20,8 @@ load_dotenv(dotenv_path=env_path)
 
 client = genai.Client()
 
+# Modal translator URL — set in .env or fall back to a default
+TRANSLATOR_URL = os.getenv("TRANSLATOR_URL", "https://spongebobrafael--linaw-translator-fastapi-app-dev.modal.run")
 
 app = FastAPI()
 
@@ -43,6 +47,8 @@ confusion_terms_store = ["Accusamus", "Ducimus", "Blanditiis"]
 class DefinitionRequest(BaseModel):
     word: str
     context: Optional[str] = None
+    include_translation: bool = True
+    target_language: str = "Cebuano (Bisaya)"
 
 class DefinitionResponse(BaseModel):
     word: str
@@ -57,6 +63,11 @@ class NotebookRequest(BaseModel):
 
 class AddToHistoryRequest(BaseModel):
     word: str
+
+class TranslateProxyRequest(BaseModel):
+    text: str
+    target_lang: str = "tgl_Latn"
+    provider: str = "nllb"
 
 @app.get("/")
 async def root():
@@ -115,7 +126,7 @@ USE_MOCK = True  # Set to False when you actually want to use Gemini
 
 @app.post("/api/define")
 async def define_word(request: DefinitionRequest):
-          
+
     word_key = request.word.lower().strip()
 
     translation_ref = (
@@ -136,7 +147,7 @@ async def define_word(request: DefinitionRequest):
             english_definition=data["english_definition"],
             confused_with=data["confused_with"]
         )
-        
+
     #then check mock
     if USE_MOCK:
         return DefinitionResponse(
@@ -147,10 +158,16 @@ async def define_word(request: DefinitionRequest):
         )
 
     # Prompting for raw strings to fit your existing fields
+    translation_instruction = ""
+    if request.include_translation:
+        translation_instruction = f"1. A translation and explanation in {request.target_language} with a sample sentence."
+    else:
+        translation_instruction = "1. (Leave this section completely blank with just a space)"
+
     prompt = f"""
-    Explain the word "{request.word}".
+    Explain the word or phrase "{request.word}".
     Provide exactly two paragraphs:
-    1. A translation and explanation in Cebuano (Bisaya) with a sample sentence.
+    {translation_instruction}
     2. A formal English definition.
     Then, list 3 words often confused with it, separated by commas.
     Separate these three sections with '---'.
@@ -167,20 +184,22 @@ async def define_word(request: DefinitionRequest):
         parts = raw_output.split("---")
 
         # Extracting strings or providing fallbacks to keep the backend stable
-        cebuano = parts[0].strip() if len(parts) > 0 else "Walay hubad."
+        target_lang_context = parts[0].strip() if len(parts) > 0 and request.include_translation else ""
         english = parts[1].strip() if len(parts) > 1 else "No definition."
         confused = [w.strip() for w in parts[2].split(",")] if len(parts) > 2 else []
-        
+
+        # TODO: Change the variable names
         translation_ref.set({
-            "cebuano_context": cebuano,
+            "cebuano_context": target_lang_context,
             "english_definition": english,
             "confused_with": confused,
             "createdAt": SERVER_TIMESTAMP
         })
 
+        # TODO: Change the variable names
         return DefinitionResponse(
             word=request.word,
-            cebuano_context=cebuano,
+            cebuano_context=target_lang_context,
             english_definition=english,
             confused_with=confused
         )
@@ -193,6 +212,24 @@ async def define_word(request: DefinitionRequest):
             english_definition=f"Error: {str(e)}",
             confused_with=[]
         )
+
+
+@app.post("/api/translate")
+async def translate_proxy(request: TranslateProxyRequest):
+    """Proxies translation requests to the Modal translator service."""
+    try:
+        async with httpx.AsyncClient() as http_client:
+            resp = await http_client.post(
+                f"{TRANSLATOR_URL}/translate",
+                json=request.model_dump(),
+                timeout=30.0
+            )
+            resp.raise_for_status()
+        return resp.json()
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(status_code=e.response.status_code, detail="Translation service error")
+    except httpx.RequestError:
+        raise HTTPException(status_code=503, detail="Translation service unavailable")
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)

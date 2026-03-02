@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sparkles, Loader2, Volume2, Maximize2, AlertCircle } from 'lucide-react';
+import { Sparkles, Loader2, Volume2, Maximize2, AlertCircle, Lightbulb, Check, X } from 'lucide-react';
 
 const Explain = ({
     mobileView,
@@ -7,7 +7,10 @@ const Explain = ({
     selectedWord,
     definition,
     confusionTerms,
-    handleHistoryItemClick
+    handleHistoryItemClick,
+    highlightSuggestion,
+    onAcceptSuggestion,
+    onDismissSuggestion,
 }) => {
     return (
         <aside className={`${mobileView === 'insights' ? 'flex' : 'hidden'} md:flex w-full md:w-80 bg-white border-l border-gray-100 p-5 flex-col gap-4 overflow-y-auto`}>
@@ -23,6 +26,33 @@ const Explain = ({
             {loading && (
                 <div className="flex justify-center items-center py-8">
                     <Loader2 className="animate-spin text-[#3DBDB4]" size={24} />
+                </div>
+            )}
+
+            {/* N-gram suggestion banner */}
+            {highlightSuggestion && (
+                <div className="bg-[#3DBDB4]/10 border border-[#3DBDB4]/30 rounded-xl p-4 animate-[fadeSlideIn_0.25s_ease-out]">
+                    <div className="flex items-center gap-2 mb-2 text-[#3DBDB4]">
+                        <Lightbulb size={14} />
+                        <span className="text-[10px] font-black uppercase tracking-widest">Did you mean to highlight?</span>
+                    </div>
+                    <p className="text-base font-black text-[#2D3748] mb-3">
+                        "{highlightSuggestion.suggestion}"
+                    </p>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={onAcceptSuggestion}
+                            className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-[#3DBDB4] text-white text-xs font-bold rounded-lg hover:bg-[#35a99f] transition-all shadow-sm"
+                        >
+                            <Check size={12} /> Yes, use this
+                        </button>
+                        <button
+                            onClick={onDismissSuggestion}
+                            className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-gray-100 text-gray-500 text-xs font-bold rounded-lg hover:bg-gray-200 transition-all"
+                        >
+                            <X size={12} /> No, keep mine
+                        </button>
+                    </div>
                 </div>
             )}
 
@@ -50,17 +80,17 @@ const Explain = ({
                             <span className="w-5 h-5 flex items-center justify-center bg-[#2D3748] text-white rounded text-[9px] font-black">EN</span>
                             <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">English Definition</span>
                         </div>
-                       <Volume2
-                              size={14}
-                              className="text-gray-300 cursor-pointer hover:text-[#3DBDB4]"
-                              onClick={() => {
+                        <Volume2
+                            size={14}
+                            className="text-gray-300 cursor-pointer hover:text-[#3DBDB4]"
+                            onClick={() => {
                                 if (definition?.english_definition) {
-                                  const utterance = new SpeechSynthesisUtterance(definition.english_definition);
-                                  utterance.lang = 'en-US';
-                                  window.speechSynthesis.speak(utterance);
+                                    const utterance = new SpeechSynthesisUtterance(definition.english_definition);
+                                    utterance.lang = 'en-US';
+                                    window.speechSynthesis.speak(utterance);
                                 }
-                              }}
-                            />
+                            }}
+                        />
                     </div>
                     <p className="text-sm text-gray-600 leading-relaxed">
                         {definition.english_definition}

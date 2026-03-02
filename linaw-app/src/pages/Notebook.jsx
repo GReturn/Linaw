@@ -20,6 +20,9 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   import.meta.url,
 ).toString();
 
+// Toggle n-gram highlight suggestions UI (set to true to show "Did you mean?" banner)
+const ENABLE_NGRAM_SUGGESTIONS = false;
+
 const InteractiveReader = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -32,6 +35,7 @@ const InteractiveReader = () => {
 
   // PDF State
   const [selectedWord, setSelectedWord] = useState("");
+  const [highlightSuggestion, setHighlightSuggestion] = useState(null);
   const [numPages, setNumPages] = useState(null);
   const [pageNumber, setPageNumber] = useState(1);
   const [scale, setScale] = useState(1.1);
@@ -176,31 +180,88 @@ const InteractiveReader = () => {
     const cleaned = expanded.replace(/[^a-zA-Z0-9\s]/g, " ");
     const words = cleaned.split(/\s+/).filter(Boolean);
 
-    const originalText = text.replace(/[^a-zA-Z0-9\s]/g, " ");
-    const originalWords = originalText.split(/\s+/).filter(Boolean);
+    if (words.length === 0) return;
 
-    let finalSelection;
-    if (originalWords.length === 0 || words.length === 0) {
-      finalSelection = words[0] || "";
-    } else if (originalWords.length === 1 || words.length === 1) {
-      finalSelection = words[0];
-    } else {
-      finalSelection = words.slice(0, 2).join(" ");
+    // Use all expanded words (no artificial clipping)
+    const finalSelection = words.join(" ");
+
+    // N-gram correction: gather surrounding context from the PDF text layer
+    const { extractContextFromDOM, findBestCandidate } = await import('../services/ngramCorrector.js');
+    const contextText = extractContextFromDOM(range);
+    const { original, suggestion } = findBestCandidate(finalSelection, contextText);
+
+    // Determine which text to gate-check (suggestion will be offered separately)
+    const textToCheck = original;
+
+    // LAYER 1: Stopword check
+    const { isStopwordPhrase, isSemanticallyDefinable } = await import('../services/wordGate.js');
+    if (isStopwordPhrase(textToCheck)) {
+      console.log(`[WordGate] Rejected stopword: "${textToCheck}"`);
+      return;
     }
 
-    setSelectedWord(finalSelection);
+    setLoading(true);
+    try {
+      // LAYER 2: Semantic check via transformers.js worker
+      const isMeaningful = await isSemanticallyDefinable(textToCheck);
+      if (!isMeaningful) {
+        console.log(`[WordGate] Rejected meaningless phrase: "${textToCheck}"`);
+        return;
+      }
 
-    await addToHistory(finalSelection);
+      // Both gates passed!
+      if (suggestion && ENABLE_NGRAM_SUGGESTIONS) {
+        // Show suggestion banner instead of proceeding immediately
+        setHighlightSuggestion({ original, suggestion });
+        setSelectedWord(original);
+        console.log(`[N-gram] Suggesting correction: "${original}" → "${suggestion}"`);
+      } else {
+        // Auto-accept the best candidate (or original if no suggestion)
+        const finalWord = original;
+        setHighlightSuggestion(null);
+        setSelectedWord(finalWord);
+        await addToHistory(finalWord);
+      }
 
-    if (window.innerWidth < 768) {
-      setMobileView("insights");
+      if (window.innerWidth < 768) {
+        setMobileView("insights");
+      }
+    } catch (err) {
+      console.error("Semantic worker failed, bypassing gate:", err);
+      setHighlightSuggestion(null);
+      setSelectedWord(finalSelection);
+      await addToHistory(finalSelection);
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const acceptSuggestion = async () => {
+    if (!highlightSuggestion) return;
+    const { suggestion } = highlightSuggestion;
+    setSelectedWord(suggestion);
+    setHighlightSuggestion(null);
+    await addToHistory(suggestion);
+  };
+
+  const dismissSuggestion = async () => {
+    if (!highlightSuggestion) return;
+    const { original } = highlightSuggestion;
+    setHighlightSuggestion(null);
+    await addToHistory(original);
   };
 
   const handleHistoryItemClick = async (term) => {
     setSelectedWord(term);
     await addToHistory(term);
   };
+
+  // Pre-initialize the Semantic Worker on mount
+  useEffect(() => {
+    import('../services/wordGate.js').then(({ initSemanticWorker }) => {
+      initSemanticWorker();
+    });
+  }, []);
 
   return (
     <div className="flex flex-col md:flex-row h-screen w-screen bg-[#FFF9F0] overflow-hidden font-sans text-[#2D3748]">
@@ -245,6 +306,9 @@ const InteractiveReader = () => {
         definition={definition}
         confusionTerms={confusionTerms}
         handleHistoryItemClick={handleHistoryItemClick}
+        highlightSuggestion={highlightSuggestion}
+        onAcceptSuggestion={acceptSuggestion}
+        onDismissSuggestion={dismissSuggestion}
       />
 
       {/* Mobile Bottom Nav */}
