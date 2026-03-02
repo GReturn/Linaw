@@ -1,6 +1,6 @@
 import { collection, addDoc, getDocs, serverTimestamp, doc } from "firebase/firestore";
 import { db } from "../services/firebase";
-import { getExplanation, getHistory as fetchHistory } from './dictionaryService';
+import { getExplanation, getHistory as fetchHistory, getDefinitionOnly as fetchDefinitionOnly, getTranslation as fetchTranslation } from './dictionaryService';
 
 export const createNotebook = async (userId, title) => {
   const notebooksRef = collection(db, "users", userId, "notebooks");
@@ -58,8 +58,22 @@ export const notebookService = {
    * Kept for call-site compatibility during transition.
    */
   addToHistory: async (_userId, _notebookId, _word) => {
-    // Side-effect handled by getExplanation → no separate call needed
+    // Side-effect handled by getExplanation — no separate call needed
     return [];
+  },
+
+  /**
+   * Phase 1: Fetches English definition + confused-with terms only (fast).
+   */
+  getDefinitionOnly: async (userId, notebookId, word, language = "cebuano", context = "") => {
+    return fetchDefinitionOnly(userId, notebookId, word, language, context);
+  },
+
+  /**
+   * Phase 2: Translates the English definition to the target language (slow).
+   */
+  getTranslation: async (term, englishDefinition, language = "cebuano") => {
+    return fetchTranslation(term, englishDefinition, language);
   },
 
 

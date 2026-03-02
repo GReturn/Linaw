@@ -68,6 +68,25 @@ class TranslateProxyRequest(BaseModel):
     target_lang: str = "tgl_Latn"
     provider: str = "nllb"
 
+# --- Progressive loading models ---
+class DefinitionOnlyRequest(BaseModel):
+    word: str
+    context: Optional[str] = None
+    target_language: str = "Cebuano (CEB)"
+
+class DefinitionOnlyResponse(BaseModel):
+    word: str
+    english_definition: str
+    confused_with: List[str]
+
+class TranslateDefinitionRequest(BaseModel):
+    word: str
+    english_definition: str
+    target_language: str = "Cebuano (CEB)"
+
+class TranslateDefinitionResponse(BaseModel):
+    translated_context: str
+
 @app.get("/")
 async def root():
     return {"message": "Welcome to Linaw API"}

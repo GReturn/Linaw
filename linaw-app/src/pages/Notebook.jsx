@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Book, FileText, Sparkles } from 'lucide-react';
 import { pdfjs } from 'react-pdf';
@@ -48,6 +48,7 @@ const InteractiveReader = () => {
   const [history, setHistory] = useState([]);
   const [definition, setDefinition] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [isTranslating, setIsTranslating] = useState(false);
   const [error, setError] = useState(null);
 
   // Load initial data
@@ -85,32 +86,83 @@ const InteractiveReader = () => {
     return () => unsubscribe();
   }, [id]);
 
-  // Fetch definition when word is selected
+  // Ref to track what word we just fetched for, so language changes don't nuke the definition
+  const lastFetchedWordRef = useRef("");
+
+  // Progressive definition fetch: Phase 1 (definition) → Phase 2 (translation)
   useEffect(() => {
-    const fetchDefinition = async () => {
+    const fetchProgressively = async () => {
       if (!selectedWord || !auth.currentUser) return;
 
-      setLoading(true);
+      const isLanguageOnlySwitch = lastFetchedWordRef.current === selectedWord;
+
+      if (!isLanguageOnlySwitch) {
+        setLoading(true);
+        setDefinition(null);
+      } else {
+        // If it's a language switch, clear out the OLD translation from the UI right away
+        setDefinition(prev => prev ? { ...prev, translated_context: "" } : null);
+      }
+
+      setIsTranslating(false);
+
       try {
-        // Checks Firebase global_dictionary first; calls backend API on miss
-        const definitionData = await notebookService.getDefinition(
-          auth.currentUser.uid,
-          id,
-          selectedWord,
-          targetLanguage,
-          selectedContext
-        );
-        setDefinition(definitionData);
-        setError(null);
+        let currentDef = null;
+
+        if (!isLanguageOnlySwitch) {
+          // ── Phase 1: Get English definition + confused-with (fast) ──
+          currentDef = await notebookService.getDefinitionOnly(
+            auth.currentUser.uid,
+            id,
+            selectedWord,
+            targetLanguage,
+            selectedContext
+          );
+
+          if (!currentDef) {
+            setError('Failed to fetch definition');
+            return;
+          }
+
+          // Show definition immediately (even if translation isn't ready)
+          setDefinition(currentDef);
+          setLoading(false);  // Definition skeleton disappears
+          setError(null);
+          lastFetchedWordRef.current = selectedWord;
+        }
+
+        // ── Phase 2: Get translation (slow) — only if not EN-only ──
+        if (targetLanguage !== "None (EN)") {
+          setIsTranslating(true);
+
+          // Re-fetch english definition from state if we didn't just load it
+          const enDefToTranslate = currentDef?.english_definition
+            || await new Promise(resolve => {
+              setDefinition(prev => { resolve(prev?.english_definition); return prev; });
+            });
+
+          const translationResult = await notebookService.getTranslation(
+            selectedWord,
+            enDefToTranslate,
+            targetLanguage
+          );
+
+          // Merge translation into the existing definition
+          setDefinition(prev => ({
+            ...prev,
+            translated_context: translationResult.translated_context,
+          }));
+          setIsTranslating(false);
+        }
       } catch (err) {
-        console.error('Error fetching definition:', err);
+        console.error('Error in progressive fetch:', err);
         setError('Failed to fetch definition');
-      } finally {
         setLoading(false);
+        setIsTranslating(false);
       }
     };
 
-    fetchDefinition();
+    fetchProgressively();
   }, [selectedWord, targetLanguage]);
 
   // History is recorded as a side-effect inside getDefinition (via dictionaryService).
@@ -336,6 +388,7 @@ const InteractiveReader = () => {
         mobileView={mobileView}
         loading={loading}
         isDefining={loading}
+        isTranslating={isTranslating}
         selectedWord={selectedWord}
         pendingWord={pendingWord}
         definition={definition}
