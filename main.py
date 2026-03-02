@@ -277,6 +277,183 @@ Word1, Word2, Word3
         )
 
 
+# ─── Progressive loading endpoints ────────────────────────────────────────────
+
+@app.post("/api/define-only")
+async def define_word_only(request: DefinitionOnlyRequest):
+    """Phase 1: Returns English definition + confused-with terms immediately (no translation)."""
+    word_key = request.word.lower().strip()
+
+    if USE_MOCK:
+        return DefinitionOnlyResponse(
+            word=request.word,
+            english_definition=f"This is a mock definition for {request.word} to save your API credits.",
+            confused_with=["Mock1", "Mock2", "Mock3"]
+        )
+
+    lang_map = {
+        "Tagalog (TGL)": "tgl",
+        "Cebuano (CEB)": "ceb",
+        "Waray (WAR)": "war",
+        "Ilocano (ILO)": "ilo",
+        "Pangasinense (PAG)": "pag",
+        "Hiligaynon (HIL)": "hil",
+        "Bikolano (BIK)": "bik"
+    }
+    lang_code = lang_map.get(request.target_language)
+
+    # Check cache — if full entry exists, return definition part only
+    if lang_code:
+        translation_ref = (
+            db.collection("global_dictionary")
+            .document(word_key)
+            .collection("translations")
+            .document(lang_code)
+        )
+        cached_doc = translation_ref.get()
+        if cached_doc.exists:
+            data = cached_doc.to_dict()
+            if data.get("cache_version") == CACHE_VERSION:
+                return DefinitionOnlyResponse(
+                    word=word_key,
+                    english_definition=data["english_definition"],
+                    confused_with=data["confused_with"]
+                )
+
+    context_instruction = ""
+    if request.context:
+        context_instruction = f'\nThe word appears in this context: "{request.context}"\nUse this context to provide a definition specific to how the word is used here.\n'
+
+    prompt = f"""
+You are a dictionary assistant. For the word or phrase "{request.word}":
+{context_instruction}
+Provide a formal English definition in exactly one paragraph.
+Then, provide exactly 3 words or phrases often confused with it, separated by commas only.
+
+CRITICAL: Format your output as exactly two parts separated by three hyphens "---" on a new line. Do NOT output any headings like "SECTION 1".
+Example format:
+This is the definition paragraph.
+---
+Word1, Word2, Word3
+"""
+
+    try:
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt,
+        )
+
+        raw_output = response.text
+        parts = raw_output.split("---")
+        english = parts[0].strip() if len(parts) > 0 else "No definition."
+        confused = [w.strip() for w in parts[1].split(",")] if len(parts) > 1 else []
+
+        # Cache the definition part (translation will be added later)
+        if lang_code:
+            translation_ref = (
+                db.collection("global_dictionary")
+                .document(word_key)
+                .collection("translations")
+                .document(lang_code)
+            )
+            translation_ref.set({
+                "english_definition": english,
+                "confused_with": confused,
+                "translated_context": "",  # placeholder for Phase 2
+                "cache_version": CACHE_VERSION,
+                "createdAt": SERVER_TIMESTAMP
+            })
+
+        return DefinitionOnlyResponse(
+            word=request.word,
+            english_definition=english,
+            confused_with=confused
+        )
+
+    except Exception as e:
+        return DefinitionOnlyResponse(
+            word=request.word,
+            english_definition=f"Error: {str(e)}",
+            confused_with=[]
+        )
+
+
+@app.post("/api/translate-definition")
+async def translate_definition(request: TranslateDefinitionRequest):
+    """Phase 2: Translates the English definition to the target language."""
+    word_key = request.word.lower().strip()
+
+    nllb_lang_map = {
+        "Tagalog (TGL)": "tgl_Latn",
+        "Cebuano (CEB)": "ceb_Latn",
+        "Waray (WAR)": "war_Latn",
+        "Ilocano (ILO)": "ilo_Latn",
+        "Pangasinense (PAG)": "pag_Latn",
+        "Hiligaynon (HIL)": "hil_Latn",
+        "Bikolano (BIK)": "bcl_Latn"
+    }
+
+    lang_map = {
+        "Tagalog (TGL)": "tgl",
+        "Cebuano (CEB)": "ceb",
+        "Waray (WAR)": "war",
+        "Ilocano (ILO)": "ilo",
+        "Pangasinense (PAG)": "pag",
+        "Hiligaynon (HIL)": "hil",
+        "Bikolano (BIK)": "bik"
+    }
+
+    lang_code = lang_map.get(request.target_language)
+
+    # Check cache — if translation already exists, return it
+    if lang_code:
+        translation_ref = (
+            db.collection("global_dictionary")
+            .document(word_key)
+            .collection("translations")
+            .document(lang_code)
+        )
+        cached_doc = translation_ref.get()
+        if cached_doc.exists:
+            data = cached_doc.to_dict()
+            if data.get("cache_version") == CACHE_VERSION and data.get("translated_context"):
+                return TranslateDefinitionResponse(
+                    translated_context=data["translated_context"]
+                )
+
+    nllb_code = nllb_lang_map.get(request.target_language)
+    if not nllb_code:
+        return TranslateDefinitionResponse(translated_context="")
+
+    try:
+        async with httpx.AsyncClient() as http_client:
+            resp = await http_client.post(
+                f"{TRANSLATOR_URL}/translate",
+                json={"text": request.english_definition, "target_lang": nllb_code, "provider": "nllb"},
+                timeout=120.0
+            )
+            resp.raise_for_status()
+            translated_text = resp.json().get("translated_text", "")
+
+        # Update cache with translation
+        if lang_code:
+            translation_ref = (
+                db.collection("global_dictionary")
+                .document(word_key)
+                .collection("translations")
+                .document(lang_code)
+            )
+            translation_ref.update({
+                "translated_context": translated_text,
+            })
+
+        return TranslateDefinitionResponse(translated_context=translated_text)
+
+    except Exception as e:
+        print(f"Translation failed ({type(e).__name__}): {e}")
+        return TranslateDefinitionResponse(translated_context="")
+
+
 @app.post("/api/translate")
 async def translate_proxy(request: TranslateProxyRequest):
     """Proxies translation requests to the Modal translator service."""
@@ -310,4 +487,4 @@ async def translate_proxy(request: TranslateProxyRequest):
         raise HTTPException(status_code=503, detail="Translation service unavailable")
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
