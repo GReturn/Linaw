@@ -38,11 +38,11 @@ export const createNotebook = async (userId, title) => {
 export const notebookService = {
   /**
    * Fetches the definition for a term.
-   * Checks Firebase global_dictionary first; falls back to mock (TODO: Gemini).
+   * Checks Firebase global_dictionary first; calls backend API on miss.
    * Also records the lookup in the user's personal notebook dictionary.
    */
-  getDefinition: async (userId, notebookId, word, language = "cebuano") => {
-    return getExplanation(userId, notebookId, word, language);
+  getDefinition: async (userId, notebookId, word, language = "cebuano", context = "") => {
+    return getExplanation(userId, notebookId, word, language, context);
   },
 
   /**
