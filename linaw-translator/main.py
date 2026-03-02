@@ -51,10 +51,12 @@ image = (
         "hf-transfer", # Faster HuggingFace downloads
         "accelerate",
         "sentencepiece",
-        "protobuf"
+        "protobuf",
+        "google-genai"
     )
     .env({"HF_HUB_ENABLE_HF_TRANSFER": "1"}) # Enable fast downloads
     .run_function(download_models, secrets=[modal.Secret.from_name("hf-token")])
+    .add_local_dir("providers", remote_path="/root/providers")
 )
 
 # Create a FastAPI instance
@@ -69,7 +71,7 @@ class TranslationResponse(BaseModel):
     translated_text: str
 
 # This class will boot up ONCE per container lifecycle
-@app.cls(image=image, gpu="A10G", scaledown_window=60)
+@app.cls(image=image, gpu="A10G", scaledown_window=60, secrets=[modal.Secret.from_name("gemini-key")])
 class Translator:
     @modal.enter()
     def load_model(self):
@@ -134,35 +136,46 @@ class Translator:
         return "\n".join(translated_paragraphs)
 
 # Hook the FastAPI endpoints to the Modal Class
+# Language-to-provider routing
+GEMINI_LANGS = {"tgl_Latn", "ceb_Latn", "hil_Latn", "bcl_Latn"}
+NLLB_LANGS   = {"ilo_Latn", "pag_Latn", "war_Latn"}
+SUPPORTED_LANGS = GEMINI_LANGS | NLLB_LANGS
+
 @web_app.post("/translate", response_model=TranslationResponse)
 async def translate_endpoint(request: TranslationRequest):
     """
-    Translates text by calling the chosen provider, applying routing rules.
+    Translates text by calling the chosen provider based on target language.
+    Gemini  -> Tagalog, Cebuano, Hiligaynon, Bikolano
+    NLLB    -> Ilocano, Pangasinense, Waray
     """
     from fastapi import HTTPException
     
-    supported_langs = {
-        "tgl_Latn", "ceb_Latn", "war_Latn", "pag_Latn", "ilo_Latn",
-        "hil_Latn", "bcl_Latn"
-    }
-    
-    if request.target_lang not in supported_langs:
+    if request.target_lang not in SUPPORTED_LANGS:
         raise HTTPException(
             status_code=400, 
             detail=f"Unsupported target language: {request.target_lang}. Supported are 7 Philippine languages."
         )
-        
-    word_count = len(request.text.split())
     
-    # NLLB loses precision over 100 words -> transfer to Gemini
-    if word_count > 100 or request.target_lang in {"hil_Latn", "bcl_Latn"}:
+    # Route by language
+    if request.target_lang in GEMINI_LANGS:
         request.provider = "gemini"
     else:
         request.provider = "nllb"
         
     from providers.factory import get_provider
-    provider_instance = get_provider(request.provider)
-    result = await provider_instance.translate(request.text, target_lang=request.target_lang)
+    try:
+        provider_instance = get_provider(request.provider)
+        result = await provider_instance.translate(request.text, target_lang=request.target_lang)
+    except Exception as e:
+        print(f"Primary provider {request.provider} failed: {e}")
+        # If Gemini fails, fallback to NLLB (which is local/unlimited)
+        if request.provider == "gemini":
+            print("Falling back to NLLB...")
+            nllb_provider = get_provider("nllb")
+            result = await nllb_provider.translate(request.text, target_lang=request.target_lang)
+        else:
+            raise HTTPException(status_code=500, detail=f"Translation failed: {str(e)}")
+            
     return TranslationResponse(translated_text=result)
 
 @web_app.get("/health")
@@ -176,7 +189,7 @@ async def root_redirect():
     return RedirectResponse(url="/docs")
 
 # Expose the FastAPI app to the internet via Modal
-@app.function(image=image)
+@app.function(image=image, secrets=[modal.Secret.from_name("gemini-key")])
 @modal.asgi_app()
 def fastapi_app():
     return web_app

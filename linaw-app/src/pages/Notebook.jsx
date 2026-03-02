@@ -32,6 +32,7 @@ const InteractiveReader = () => {
   const [notebook, setNotebook] = useState({ title: "Linaw", file: "/2025.nllp-1.3.pdf" });
   const [documents, setDocuments] = useState([]);
   const [currentFile, setCurrentFile] = useState(null);
+  const [targetLanguage, setTargetLanguage] = useState("Cebuano (CEB)");
 
   // PDF State
   const [selectedWord, setSelectedWord] = useState("");
@@ -63,9 +64,6 @@ const InteractiveReader = () => {
 
         const historyData = await notebookService.getHistory();
         setHistory(historyData);
-
-        const confusionData = await notebookService.getConfusionTerms();
-        setConfusionTerms(confusionData);
       } catch (err) {
         console.error('Error loading initial data:', err);
         setError('Failed to load initial data');
@@ -92,8 +90,11 @@ const InteractiveReader = () => {
 
       setLoading(true);
       try {
-        const definitionData = await notebookService.getDefinition(selectedWord);
+        const definitionData = await notebookService.getDefinition(selectedWord, targetLanguage);
         setDefinition(definitionData);
+        if (definitionData?.confused_with?.length > 0) {
+          setConfusionTerms(definitionData.confused_with);
+        }
         setError(null);
       } catch (err) {
         console.error('Error fetching definition:', err);
@@ -104,7 +105,7 @@ const InteractiveReader = () => {
     };
 
     fetchDefinition();
-  }, [selectedWord]);
+  }, [selectedWord, targetLanguage]);
 
   // Add word to history
   const addToHistory = async (word) => {
@@ -309,6 +310,8 @@ const InteractiveReader = () => {
         highlightSuggestion={highlightSuggestion}
         onAcceptSuggestion={acceptSuggestion}
         onDismissSuggestion={dismissSuggestion}
+        targetLanguage={targetLanguage}
+        setTargetLanguage={setTargetLanguage}
       />
 
       {/* Mobile Bottom Nav */}

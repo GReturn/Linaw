@@ -11,7 +11,18 @@ const Explain = ({
     highlightSuggestion,
     onAcceptSuggestion,
     onDismissSuggestion,
+    targetLanguage,
+    setTargetLanguage,
 }) => {
+    // Helper to get abbreviation for the badge
+    const getAbbreviation = (langStr) => {
+        if (!langStr) return "CE";
+        const match = langStr.match(/\((.*?)\)/);
+        return match ? match[1] : "CE";
+    };
+
+    const langAbbr = getAbbreviation(targetLanguage);
+
     return (
         <aside className={`${mobileView === 'insights' ? 'flex' : 'hidden'} md:flex w-full md:w-80 bg-white border-l border-gray-100 p-5 flex-col gap-4 overflow-y-auto`}>
             <div className="flex items-center justify-between mb-2">
@@ -19,7 +30,21 @@ const Explain = ({
                     <Sparkles size={16} /> Explain
                 </h3>
                 <div className="flex items-center gap-2 px-3 py-1 bg-gray-50 rounded-full border border-gray-100">
-                    <span className="text-[9px] font-black text-gray-500 tracking-tighter">EN → CEB</span>
+                    <select
+                        value={targetLanguage}
+                        onChange={(e) => setTargetLanguage(e.target.value)}
+                        className="text-[9px] font-black text-gray-400 uppercase tracking-tighter bg-transparent outline-none cursor-pointer appearance-none text-center"
+                        style={{ textAlignLast: 'center' }}
+                    >
+                        <option value="None (EN)">NONE (EN)</option>
+                        <option value="Tagalog (TGL)">TAGALOG (TGL)</option>
+                        <option value="Cebuano (CEB)">CEBUANO (CEB)</option>
+                        <option value="Waray (WAR)">WARAY (WAR)</option>
+                        <option value="Ilocano (ILO)">ILOCANO (ILO)</option>
+                        <option value="Pangasinense (PAG)">PANGASINENSE (PAG)</option>
+                        <option value="Hiligaynon (HIL)">HILIGAYNON (HIL)</option>
+                        <option value="Bikolano (BIK)">BIKOLANO (BIK)</option>
+                    </select>
                 </div>
             </div>
 
@@ -61,14 +86,14 @@ const Explain = ({
                 <h2 className="text-xl font-black text-[#2D3748]">{selectedWord}</h2>
             </div>
 
-            {definition && (
+            {definition && definition.translated_context && targetLanguage !== "None (EN)" && (
                 <div className="bg-white border border-[#3DBDB4]/20 rounded-xl p-4">
                     <div className="flex items-center gap-2 mb-2">
-                        <span className="w-5 h-5 flex items-center justify-center bg-[#3DBDB4] text-white rounded text-[9px] font-black">CE</span>
-                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Cebuano Context</span>
+                        <span className="w-5 h-5 flex items-center justify-center bg-[#3DBDB4] text-white rounded text-[9px] font-black">{langAbbr}</span>
+                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{targetLanguage.split(' ')[0]} Context</span>
                     </div>
                     <p className="text-sm text-gray-700 leading-relaxed font-medium italic">
-                        {definition.cebuano_context}
+                        {definition.translated_context}
                     </p>
                 </div>
             )}
