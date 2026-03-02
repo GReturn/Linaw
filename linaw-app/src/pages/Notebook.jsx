@@ -33,6 +33,7 @@ const InteractiveReader = () => {
   const [notebook, setNotebook] = useState({ title: "Linaw", file: "/2025.nllp-1.3.pdf" });
   const [documents, setDocuments] = useState([]);
   const [currentFile, setCurrentFile] = useState(null);
+  const [targetLanguage, setTargetLanguage] = useState("Cebuano (CEB)");
 
   // PDF State
   const [selectedWord, setSelectedWord] = useState("");
@@ -96,6 +97,9 @@ const InteractiveReader = () => {
           selectedWord
         );
         setDefinition(definitionData);
+        if (definitionData?.confused_with?.length > 0) {
+          setConfusionTerms(definitionData.confused_with);
+        }
         setError(null);
       } catch (err) {
         console.error('Error fetching definition:', err);
@@ -106,7 +110,7 @@ const InteractiveReader = () => {
     };
 
     fetchDefinition();
-  }, [selectedWord]);
+  }, [selectedWord, targetLanguage]);
 
   // History is recorded as a side-effect inside getDefinition (via dictionaryService).
   // This function just re-fetches the latest list from Firestore to refresh the sidebar.
@@ -323,6 +327,8 @@ const InteractiveReader = () => {
         highlightSuggestion={highlightSuggestion}
         onAcceptSuggestion={acceptSuggestion}
         onDismissSuggestion={dismissSuggestion}
+        targetLanguage={targetLanguage}
+        setTargetLanguage={setTargetLanguage}
       />
 
       {/* Mobile Bottom Nav */}

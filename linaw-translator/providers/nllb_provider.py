@@ -7,4 +7,4 @@ class NLLBProvider(TranslationProvider):
         
         # Trigger Modal remote inference
         translator_instance = Translator()
-        return translator_instance.translate.remote(text, target_lang=target_lang)
+        return await translator_instance.translate.remote.aio(text, target_lang=target_lang)
