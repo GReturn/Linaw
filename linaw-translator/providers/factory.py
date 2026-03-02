@@ -1,9 +1,9 @@
 from .nllb_provider import NLLBProvider
-from .google_provider import GoogleProvider
+from .gemini_provider import GeminiProvider
 
 def get_provider(provider_name: str):
     providers = {
         "nllb": NLLBProvider(),
-        "google": GoogleProvider(),
+        "gemini": GeminiProvider(),
     }
     return providers.get(provider_name.lower(), providers["nllb"])
