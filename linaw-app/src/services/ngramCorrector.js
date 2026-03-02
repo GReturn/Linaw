@@ -95,11 +95,16 @@ function normalize(text) {
 
 /**
  * Generate n-gram candidates from context that overlap with the selected text.
+ * Each candidate is tagged with its direction relative to the selection:
+ *   - 'forward'  = selected words are at the START → candidate appends words
+ *   - 'backward' = selected words are at the END   → candidate prepends words
+ *   - 'both'     = selected words are in the MIDDLE → extends both ways
+ *   - 'exact'    = candidate IS the selection
  *
  * @param {string} contextText - The wider context string
  * @param {string} selectedText - What the user actually selected
  * @param {number} maxN - Max n-gram size to generate
- * @returns {string[]} Candidate phrases sorted longest-first
+ * @returns {{ text: string, direction: string }[]} Candidate phrases with direction
  */
 export function generateOverlappingNgrams(contextText, selectedText, maxN = 6) {
     const contextWords = normalize(contextText).split(/\s+/).filter(Boolean);
@@ -107,37 +112,46 @@ export function generateOverlappingNgrams(contextText, selectedText, maxN = 6) {
 
     if (selectedWords.length === 0 || contextWords.length === 0) return [];
 
-    const candidates = new Set();
+    const seen = new Set();
+    const candidates = [];
 
-    // Generate n-grams from n=selectedWords.length to maxN
-    const minN = Math.max(selectedWords.length, 2);
+    // Generate n-grams from n=selectedWords.length+1 to maxN
+    // (skip same-length since those would just be the selection itself)
+    const minN = selectedWords.length + 1;
     for (let n = minN; n <= Math.min(maxN, contextWords.length); n++) {
         const grams = ngramsOf(contextWords, n);
         for (const gram of grams) {
-            // Check if this n-gram contains ALL selected words in order
-            if (containsSubsequence(gram.split(/\s+/), selectedWords)) {
-                candidates.add(gram);
+            if (seen.has(gram)) continue;
+
+            const gramWords = gram.split(/\s+/);
+            const pos = findSubsequencePosition(gramWords, selectedWords);
+            if (pos === -1) continue;
+
+            seen.add(gram);
+
+            // Determine direction
+            let direction;
+            if (pos === 0 && gramWords.length > selectedWords.length) {
+                direction = 'forward'; // Selected at start, new words appended
+            } else if (pos + selectedWords.length === gramWords.length) {
+                direction = 'backward'; // Selected at end, new words prepended
+            } else {
+                direction = 'both';
             }
+
+            candidates.push({ text: gram, direction });
         }
     }
 
-    // Sort by length descending (longest candidates first), but prefer
-    // candidates closest to selectedWords.length + 1 (likely one word was missed)
-    return Array.from(candidates).sort((a, b) => {
-        const aLen = a.split(/\s+/).length;
-        const bLen = b.split(/\s+/).length;
-        // Prefer the candidate that's just slightly longer than what was selected
-        const aDiff = Math.abs(aLen - (selectedWords.length + 1));
-        const bDiff = Math.abs(bLen - (selectedWords.length + 1));
-        return aDiff - bDiff || aLen - bLen;
-    });
+    return candidates;
 }
 
 /**
- * Check if `words` contains `subseq` as a contiguous subsequence.
+ * Find the starting position of `subseq` as a contiguous subsequence in `words`.
+ * Returns the index, or -1 if not found.
  */
-function containsSubsequence(words, subseq) {
-    if (subseq.length > words.length) return false;
+function findSubsequencePosition(words, subseq) {
+    if (subseq.length > words.length) return -1;
     for (let i = 0; i <= words.length - subseq.length; i++) {
         let match = true;
         for (let j = 0; j < subseq.length; j++) {
@@ -146,31 +160,33 @@ function containsSubsequence(words, subseq) {
                 break;
             }
         }
-        if (match) return true;
+        if (match) return i;
     }
-    return false;
+    return -1;
 }
 
 /**
- * Check whether the selected text appears to be "cut off" — i.e. in the
- * context, the selected words are followed by another word that is
- * alphanumeric (suggesting the user wanted to include it).
+ * Detect WHERE the selection appears truncated relative to the context.
+ * Returns: 'forward' (cut off at end), 'backward' (cut off at start),
+ *          'both', or null (not truncated).
  */
-function selectionLooksTruncated(contextText, selectedText) {
+function detectTruncationDirection(contextText, selectedText) {
     const normContext = normalize(contextText);
     const normSelection = normalize(selectedText);
 
     const idx = normContext.indexOf(normSelection);
-    if (idx === -1) return false;
+    if (idx === -1) return null;
 
-    const afterSelection = normContext.slice(idx + normSelection.length).trim();
-    // If a word immediately follows and the selection doesn't end at a
-    // natural boundary (period, comma, colon, etc.), it's likely truncated
-    if (afterSelection.length > 0 && /^[a-z0-9]/.test(afterSelection)) {
-        return true;
-    }
+    const before = normContext.slice(0, idx).trim();
+    const after = normContext.slice(idx + normSelection.length).trim();
 
-    return false;
+    const truncatedAfter = after.length > 0 && /^[a-z0-9]/.test(after);
+    const truncatedBefore = before.length > 0 && /[a-z0-9]$/.test(before);
+
+    if (truncatedAfter && truncatedBefore) return 'both';
+    if (truncatedAfter) return 'forward';
+    if (truncatedBefore) return 'backward';
+    return null;
 }
 
 /**
@@ -190,8 +206,9 @@ export function findBestCandidate(selectedText, contextText) {
         return { original: selectedText.trim(), suggestion: null };
     }
 
-    // If the selection doesn't look truncated, no suggestion needed
-    if (!selectionLooksTruncated(contextText, selectedText)) {
+    // Detect if and where the selection is truncated
+    const truncationDir = detectTruncationDirection(contextText, selectedText);
+    if (!truncationDir) {
         return { original: selectedText.trim(), suggestion: null };
     }
 
@@ -201,16 +218,37 @@ export function findBestCandidate(selectedText, contextText) {
         return { original: selectedText.trim(), suggestion: null };
     }
 
-    // The best candidate is the first one (sorted by closeness to +1 word)
-    const best = candidates[0];
+    // Score candidates: strongly prefer those extending in the truncation direction.
+    // E.g. if truncated at end ('forward'), prefer candidates where selected words
+    // are at the START (direction === 'forward').
+    const scored = candidates.map(c => {
+        const wordLen = c.text.split(/\s+/).length;
+        const lenDiff = Math.abs(wordLen - (selectedWords.length + 1));
+
+        // Direction match scoring (lower = better)
+        let dirScore;
+        if (c.direction === truncationDir) {
+            dirScore = 0;   // Perfect match — extends in the right direction
+        } else if (c.direction === 'both') {
+            dirScore = 1;   // Acceptable — extends both ways
+        } else {
+            dirScore = 10;  // Wrong direction — heavily penalized
+        }
+
+        return { ...c, score: dirScore * 100 + lenDiff };
+    });
+
+    scored.sort((a, b) => a.score - b.score);
+
+    const best = scored[0];
 
     // Don't suggest if it's the same as what was already selected
-    if (best === selected) {
+    if (best.text === selected) {
         return { original: selectedText.trim(), suggestion: null };
     }
 
     // Reconstruct with proper casing from contextText
-    const properCased = recoverCasing(best, contextText);
+    const properCased = recoverCasing(best.text, contextText);
 
     return {
         original: selectedText.trim(),
