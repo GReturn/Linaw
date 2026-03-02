@@ -188,19 +188,53 @@ const InteractiveReader = () => {
       finalSelection = words.slice(0, 2).join(" ");
     }
 
-    setSelectedWord(finalSelection);
+    // LAYER 1: Stopword check
+    import('../services/wordGate.js').then(async ({ isStopwordPhrase, isSemanticallyDefinable }) => {
+      if (isStopwordPhrase(finalSelection)) {
+        // Simply clear selection, maybe show a toast in future
+        console.log(`[WordGate] Rejected stopword: "${finalSelection}"`);
+        return;
+      }
 
-    await addToHistory(finalSelection);
+      // Optional: show a loading state for the ML inference
+      setLoading(true);
+      try {
+        // LAYER 2: Semantic check via transformers.js worker
+        const isMeaningful = await isSemanticallyDefinable(finalSelection);
+        if (!isMeaningful) {
+          console.log(`[WordGate] Rejected meaningless phrase: "${finalSelection}"`);
+          return;
+        }
 
-    if (window.innerWidth < 768) {
-      setMobileView("insights");
-    }
+        // Both gates passed! Proceeed.
+        setSelectedWord(finalSelection);
+        await addToHistory(finalSelection);
+
+        if (window.innerWidth < 768) {
+          setMobileView("insights");
+        }
+      } catch (err) {
+        console.error("Semantic worker failed, bypassing gate:", err);
+        // Fallback to allowing it if the local ML fails
+        setSelectedWord(finalSelection);
+        await addToHistory(finalSelection);
+      } finally {
+        setLoading(false);
+      }
+    });
   };
 
   const handleHistoryItemClick = async (term) => {
     setSelectedWord(term);
     await addToHistory(term);
   };
+
+  // Pre-initialize the Semantic Worker on mount
+  useEffect(() => {
+    import('../services/wordGate.js').then(({ initSemanticWorker }) => {
+      initSemanticWorker();
+    });
+  }, []);
 
   return (
     <div className="flex flex-col md:flex-row h-screen w-screen bg-[#FFF9F0] overflow-hidden font-sans text-[#2D3748]">
