@@ -31,7 +31,7 @@ self.addEventListener('message', async (event) => {
         const classifier = await SemanticVerifier.getInstance((data) => {
             // TODO: Optional: send progress updates (e.g. download progress)
             // self.postMessage({ status: 'progress', data });
-            console.log('Model progress:', data);
+            // console.log('Model progress:', data);
         });
 
         // We want to classify if this is a valid English phrase
