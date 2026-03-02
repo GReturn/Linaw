@@ -1,5 +1,6 @@
 from pathlib import Path
-
+from firebase_config import db
+from google.cloud.firestore import SERVER_TIMESTAMP
 from google import genai
 import uvicorn
 from dotenv import load_dotenv
@@ -15,8 +16,7 @@ import os
 env_path = Path('.') / 'linaw-app' / '.env'
 load_dotenv(dotenv_path=env_path)
 
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
-client = genai.Client(api_key=GEMINI_API_KEY)
+client = genai.Client()
 
 
 app = FastAPI()
@@ -111,13 +111,11 @@ async def upload_source(
     "fileURL": f"http://localhost:8000/uploads/{unique_filename}"
 }
 
-
-
 USE_MOCK = True  # Set to False when you actually want to use Gemini
 
 @app.post("/api/define")
 async def define_word(request: DefinitionRequest):
-
+    
     if USE_MOCK:
         return DefinitionResponse(
             word=request.word,
@@ -125,6 +123,28 @@ async def define_word(request: DefinitionRequest):
             english_definition=f"This is a mock definition for {request.word} to save your API credits.",
             confused_with=["Mock1", "Mock2", "Mock3"]
         )
+          
+    word_key = request.word.lower().strip()
+
+    translation_ref = (
+        db.collection("global_dictionary")
+        .document(word_key)
+        .collection("translations")
+        .document("ceb")
+    )
+
+    doc = translation_ref.get()
+
+    #check global dict first
+    if doc.exists:
+        data = doc.to_dict()
+        return DefinitionResponse(
+            word=word_key,
+            cebuano_context=data["cebuano_context"],
+            english_definition=data["english_definition"],
+            confused_with=data["confused_with"]
+        )
+
     # Prompting for raw strings to fit your existing fields
     prompt = f"""
     Explain the word "{request.word}".
@@ -149,6 +169,13 @@ async def define_word(request: DefinitionRequest):
         cebuano = parts[0].strip() if len(parts) > 0 else "Walay hubad."
         english = parts[1].strip() if len(parts) > 1 else "No definition."
         confused = [w.strip() for w in parts[2].split(",")] if len(parts) > 2 else []
+        
+        translation_ref.set({
+            "cebuano_context": cebuano,
+            "english_definition": english,
+            "confused_with": confused,
+            "createdAt": SERVER_TIMESTAMP
+        })
 
         return DefinitionResponse(
             word=request.word,
