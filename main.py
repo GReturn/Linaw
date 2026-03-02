@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from firebase_config import db
+from firebase_config import db, bucket
 from google.cloud.firestore import SERVER_TIMESTAMP
 from google import genai
 import httpx
@@ -23,11 +23,6 @@ client = genai.Client()
 TRANSLATOR_URL = "https://spongebobrafael--linaw-translator-fastapi-app.modal.run"
 
 app = FastAPI()
-
-UPLOAD_DIR = "uploads"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
-
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 # Configure CORS
 app.add_middleware(
@@ -110,17 +105,35 @@ async def upload_source(
     file: UploadFile = File(...)
 ):
     unique_filename = f"{uuid.uuid4()}_{file.filename}"
-    file_location = os.path.join(UPLOAD_DIR, unique_filename)
+    print("Uploading to Firebase Storage now...")
+    blob = bucket.blob(f"users/{user_id}/notebooks/{notebook_id}/{unique_filename}")
 
     content = await file.read()
-    with open(file_location, "wb") as f:
-        f.write(content)
+    blob.upload_from_string(content, content_type="application/pdf")
+
+    blob.make_public()
+
+    file_url = blob.public_url
+
+    doc_ref = db.collection("users") \
+        .document(user_id) \
+        .collection("notebooks") \
+        .document(notebook_id) \
+        .collection("documents") \
+        .document()
+
+    doc_ref.set({
+        "fileName": file.filename,
+        "fileURL": file_url,
+        "createdAt": SERVER_TIMESTAMP
+    })
 
     return {
-    "fileName": file.filename,
-    "fileURL": f"http://localhost:8000/uploads/{unique_filename}"
-}
-
+        "message": "Upload successful",
+        "fileName": file.filename,
+        "fileURL": file_url
+    }
+    
 USE_MOCK = False  # Set to False when you actually want to use Gemini
 
 CACHE_VERSION = "v2"  # Bump this to invalidate old stale cache entries
@@ -195,8 +208,8 @@ Provide exactly one paragraph with a formal English definition.
 SECTION 2 - CONFUSED WORDS:
 List exactly 3 words or phrases often confused with "{request.word}", separated by commas only.
 
-Format your response as exactly two sections separated by '---' on its own line. Do not include section headers.
-"""
+    Format your response as exactly two sections separated by '---' on its own line. Do not include section headers.
+    """
 
     try:
         response = client.models.generate_content(
