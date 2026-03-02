@@ -50,22 +50,20 @@ const Dictionary = ({
             <div className="flex-1 overflow-y-auto px-4 pb-4">
                 {activeTab === 'sources' ? (
                     <div className="space-y-3">
-                        <div className="p-3 bg-[#3DBDB4]/5 border border-[#3DBDB4]/20 rounded-lg flex items-center gap-3">
-                            {documents.map((doc) => (
-                                <button
-                                    key={doc.id}
-                                    onClick={() => setCurrentFile(doc.fileURL)}
-                                    className="p-3 bg-[#3DBDB4]/5 border border-[#3DBDB4]/20 rounded-lg flex items-center gap-3 w-full"
-                                >
-                                    <div className="p-2 bg-white rounded shadow-sm text-[#3DBDB4]">
-                                        <FileText size={16} />
-                                    </div>
-                                    <span className="text-sm font-bold truncate text-[#2D3748]">
-                                        {doc.fileName}
-                                    </span>
-                                </button>
-                            ))}
-                        </div>
+                        {documents.map((doc) => (
+                            <button
+                                key={doc.id}
+                                onClick={() => setCurrentFile(doc.filePath)}
+                                className="p-3 bg-[#3DBDB4]/5 border border-[#3DBDB4]/20 rounded-lg flex items-center gap-3 w-full"
+                            >
+                                <div className="p-2 bg-white rounded shadow-sm text-[#3DBDB4]">
+                                    <FileText size={16} />
+                                </div>
+                                <span className="text-sm font-bold truncate text-[#2D3748]">
+                                    {doc.fileName}
+                                </span>
+                            </button>
+                        ))}
                         <button
                             onClick={() => document.getElementById("sourceUpload").click()}
                             className="w-full py-3 border border-dashed border-gray-200 rounded-lg flex items-center justify-center gap-2 text-gray-400 font-bold text-sm hover:border-[#3DBDB4] hover:bg-[#3DBDB4]/5 transition-all">
