@@ -20,8 +20,7 @@ load_dotenv(dotenv_path=env_path)
 
 client = genai.Client()
 
-# Modal translator URL — set in .env or fall back to a default
-TRANSLATOR_URL = os.getenv("TRANSLATOR_URL", "https://spongebobrafael--linaw-translator-fastapi-app-dev.modal.run")
+TRANSLATOR_URL = "https://spongebobrafael--linaw-translator-fastapi-app.modal.run"
 
 app = FastAPI()
 
