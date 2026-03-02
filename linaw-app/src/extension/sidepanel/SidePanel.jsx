@@ -9,15 +9,17 @@ export default function SidePanel() {
   const { user, loading, logout } = useAuth();
   const [activeTab, setActiveTab] = useState("explain");
   const [selectedWord, setSelectedWord] = useState('');
+  const [wordCount, setWordCount] = useState(0);
 
   // Listen for changes from the background script
   useEffect(() => {
     if (!chrome || !chrome.storage) return;
 
     // Load initial word
-    chrome.storage.session.get(['linawSelectedWord'], (result) => {
+    chrome.storage.session.get(['linawSelectedWord', 'linawWordCount'], (result) => {
       if (result.linawSelectedWord) {
         setSelectedWord(result.linawSelectedWord);
+        setWordCount(result.linawWordCount || 0);
         setActiveTab("explain");
       }
     });
@@ -26,6 +28,7 @@ export default function SidePanel() {
     const storageListener = (changes, namespace) => {
       if (namespace === 'session' && changes.linawSelectedWord) {
         setSelectedWord(changes.linawSelectedWord.newValue);
+        setWordCount(changes.linawWordCount ? changes.linawWordCount.newValue : 0);
         setActiveTab("explain");
       }
     };
@@ -89,6 +92,7 @@ export default function SidePanel() {
         activeTab === "explain" ? (
           <ExtensionExplain
             selectedWord={selectedWord}
+            wordCount={wordCount}
             onHistoryItemClick={handleHistoryItemClick}
           />
         ) : (

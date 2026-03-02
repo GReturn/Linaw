@@ -10,6 +10,7 @@ import 'react-pdf/dist/Page/TextLayer.css';
 
 import { auth, db } from "../services/firebase";
 import { notebookService } from "../services/notebookService";
+import { validateSelection, TOO_MANY_WORDS_MESSAGE } from "../services/selectionValidator";
 
 import Dictionary from '../components/notebook/Dictionary';
 import Reader from '../components/notebook/Reader';
@@ -185,8 +186,11 @@ const InteractiveReader = () => {
     const words = cleaned.split(/\s+/).filter(Boolean);
 
     if (words.length === 0) return;
-    if (words.length > 5) {
-      setError("Woah there, that's a lot of words! Linaw can't define that for you.");
+
+    // Shared validation: rejects phrases longer than MAX_WORD_COUNT
+    const { valid } = validateSelection(expanded);
+    if (!valid) {
+      setError(TOO_MANY_WORDS_MESSAGE);
       setTimeout(() => setError(null), 3500);
       return;
     }

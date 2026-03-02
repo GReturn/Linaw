@@ -2,22 +2,25 @@ import React, { useState, useEffect } from 'react';
 import { Sparkles, Loader2, Volume2, AlertCircle, Maximize2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { notebookService } from '../../services/notebookService';
+import { MAX_WORD_COUNT, TOO_MANY_WORDS_MESSAGE } from '../../services/selectionValidator';
 
-export default function ExtensionExplain({ selectedWord, onHistoryItemClick }) {
+export default function ExtensionExplain({ selectedWord, wordCount, onHistoryItemClick }) {
     const { user } = useAuth();
     const [loading, setLoading] = useState(false);
     const [definition, setDefinition] = useState(null);
 
+    // Validate word count using the shared rule
+    const tooManyWords = wordCount > MAX_WORD_COUNT;
+
     useEffect(() => {
         const fetchDefinition = async () => {
-            if (!selectedWord || !user) {
+            if (!selectedWord || !user || tooManyWords) {
                 setDefinition(null);
                 return;
             }
 
             setLoading(true);
             try {
-                // Using "extension" as a fixed notebookId for the global dictionary history
                 const result = await notebookService.getDefinition(user.uid, "extension", selectedWord);
                 setDefinition(result);
             } catch (error) {
@@ -28,8 +31,9 @@ export default function ExtensionExplain({ selectedWord, onHistoryItemClick }) {
         };
 
         fetchDefinition();
-    }, [selectedWord, user]);
+    }, [selectedWord, wordCount, user]);
 
+    // Empty state — no word selected yet
     if (!selectedWord) {
         return (
             <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
@@ -40,6 +44,27 @@ export default function ExtensionExplain({ selectedWord, onHistoryItemClick }) {
                 <p className="text-xs text-gray-400">
                     Select text on any webpage and click the Linaw tooltip to see its explanation here.
                 </p>
+            </div>
+        );
+    }
+
+    // Too many words — show friendly error
+    if (tooManyWords) {
+        return (
+            <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 bg-[#F8FAFC]">
+                <div className="bg-[#FFD93C] rounded-xl p-5 shadow-sm">
+                    <p className="text-[10px] font-black text-[#2D3748]/40 uppercase tracking-widest mb-1">Selected Text</p>
+                    <h2 className="text-lg font-black text-[#2D3748] leading-snug break-words">{selectedWord}</h2>
+                </div>
+
+                <div className="bg-[#FF6B6B]/10 border border-[#FF6B6B]/30 rounded-xl p-5 flex flex-col items-center text-center gap-3">
+                    <span className="text-3xl">🚫</span>
+                    <p className="text-sm font-black text-[#FF6B6B]">Woah there!</p>
+                    <p className="text-xs text-gray-500 leading-relaxed">{TOO_MANY_WORDS_MESSAGE}</p>
+                    <p className="text-[10px] font-bold text-gray-400">
+                        Try highlighting <span className="text-[#3DBDB4]">5 words or fewer</span>.
+                    </p>
+                </div>
             </div>
         );
     }
@@ -116,13 +141,13 @@ export default function ExtensionExplain({ selectedWord, onHistoryItemClick }) {
                         </div>
                     )}
                 </>
-            ) : selectedWord ? (
+            ) : (
                 <div className="bg-white border border-gray-100 rounded-xl p-6 shadow-sm text-center flex flex-col items-center">
                     <AlertCircle size={24} className="text-gray-300 mb-2" />
                     <p className="text-sm font-bold text-gray-600">Definition not found</p>
                     <p className="text-xs text-gray-400 mt-1">We couldn't analyze this term right now.</p>
                 </div>
-            ) : null}
+            )}
         </div>
     );
 }

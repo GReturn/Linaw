@@ -10,7 +10,10 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
     console.log("[Linaw BG] Received EXPLAIN_WORD:", request.word);
 
     // store the word first so the side panel can read it immediately upon opening
-    chrome.storage.session.set({ linawSelectedWord: request.word }).then(function () {
+    chrome.storage.session.set({
+      linawSelectedWord: request.word,
+      linawWordCount: request.wordCount || 0,
+    }).then(function () {
       console.log("[Linaw BG] Saved word to session storage:", request.word);
 
       // then open the side panel
@@ -27,6 +30,6 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
       }
     });
 
-    return true; // Keep message channel open for async sendResponse
+    return true; // keep message channel open for async sendResponse
   }
 });
