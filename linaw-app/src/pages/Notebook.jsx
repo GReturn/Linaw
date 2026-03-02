@@ -20,6 +20,9 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   import.meta.url,
 ).toString();
 
+// Toggle n-gram highlight suggestions UI (set to true to show "Did you mean?" banner)
+const ENABLE_NGRAM_SUGGESTIONS = false;
+
 const InteractiveReader = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -207,15 +210,17 @@ const InteractiveReader = () => {
       }
 
       // Both gates passed!
-      if (suggestion) {
+      if (suggestion && ENABLE_NGRAM_SUGGESTIONS) {
         // Show suggestion banner instead of proceeding immediately
         setHighlightSuggestion({ original, suggestion });
         setSelectedWord(original);
         console.log(`[N-gram] Suggesting correction: "${original}" → "${suggestion}"`);
       } else {
+        // Auto-accept the best candidate (or original if no suggestion)
+        const finalWord = suggestion || original;
         setHighlightSuggestion(null);
-        setSelectedWord(original);
-        await addToHistory(original);
+        setSelectedWord(finalWord);
+        await addToHistory(finalWord);
       }
 
       if (window.innerWidth < 768) {
