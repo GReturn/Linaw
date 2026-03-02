@@ -13,12 +13,12 @@ import { doc, getDoc, setDoc, collection, getDocs, orderBy, query, serverTimesta
  * @param {string} language     - Target language (default: "cebuano")
  * @returns {object}            - Definition data matching DefinitionResponse shape
  */
-export const getExplanation = async (userId, notebookId, term, language = "cebuano") => {
+export const getExplanation = async (userId, notebookId, term, language = "cebuano", context = "") => {
   const termKey = `${term.toLowerCase().trim()}_${language.toLowerCase()}`;
   const globalDocRef = doc(db, 'global_dictionary', termKey);
 
   try {
-    // --- STEP 1: Check the global dictionary first (cache hit = free) ---
+    // --- STEP 1: Check the global dictionary cache first (cache hit = free) ---
     const globalDocSnap = await getDoc(globalDocRef);
 
     let definitionData = null;
@@ -27,25 +27,44 @@ export const getExplanation = async (userId, notebookId, term, language = "cebua
       console.log(`[GlobalDict] Cache hit for "${termKey}"`);
       definitionData = globalDocSnap.data();
     } else {
-      console.log(`[GlobalDict] Cache miss for "${termKey}". Using mock fallback.`);
+      console.log(`[GlobalDict] Cache miss for "${termKey}". Calling backend API.`);
 
-      // --- STEP 2: Fallback — TODO: Replace this mock with a real Gemini/SEA-LION API call ---
+      // --- STEP 2: Cache miss — call the backend /api/define endpoint ---
+      const response = await fetch("http://localhost:8000/api/define", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          word: term,
+          context: context || null,
+          target_language: language,
+          include_translation: true
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+
       definitionData = {
-        term: term,
+        term: data.word,
         language: language,
-        cebuano_context: `Kini usa ka mock explanation para sa "${term}". Palihug pun-a kini og tinuod nga kahulugan.`,
-        english_definition: `This is a mock definition for "${term}". A developer will replace this with a real GenAI response.`,
-        confused_with: ["MockTermA", "MockTermB", "MockTermC"],
+        translated_context: data.translated_context,
+        english_definition: data.english_definition,
+        confused_with: data.confused_with || [],
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       };
 
-      // Save to global dictionary so the NEXT user gets a cache hit
+      // --- STEP 3: Save to global dictionary cache ---
       await setDoc(globalDocRef, definitionData);
-      console.log(`[GlobalDict] Saved mock definition for "${termKey}" to global_dictionary`);
+      console.log(`[GlobalDict] Saved definition for "${termKey}" to global_dictionary`);
     }
 
-    // --- STEP 3: Record in the user's personal notebook dictionary history ---
+    // --- STEP 4: Record in the user's personal notebook dictionary history ---
     if (userId && notebookId) {
       const userDictRef = doc(db, 'users', userId, 'notebooks', notebookId, 'dictionary', termKey);
       await setDoc(userDictRef, {
@@ -59,7 +78,7 @@ export const getExplanation = async (userId, notebookId, term, language = "cebua
     return definitionData;
 
   } catch (error) {
-    console.error('[GlobalDict] Error fetching explanation:', error);
+    console.error('[Dictionary API] Error fetching explanation:', error);
     return null;
   }
 };
