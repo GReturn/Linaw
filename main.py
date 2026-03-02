@@ -122,7 +122,9 @@ async def upload_source(
     "fileURL": f"http://localhost:8000/uploads/{unique_filename}"
 }
 
-USE_MOCK = True  # Set to False when you actually want to use Gemini
+USE_MOCK = False  # Set to False when you actually want to use Gemini
+
+CACHE_VERSION = "v2"  # Bump this to invalidate old stale cache entries
 
 @app.post("/api/define")
 async def define_word(request: DefinitionRequest):
@@ -149,20 +151,21 @@ async def define_word(request: DefinitionRequest):
             .collection("translations")
             .document(lang_code)
         )
-        doc = translation_ref.get()
+        cached_doc = translation_ref.get()
     else:
-        doc = None
+        cached_doc = None
         translation_ref = None
 
-    #check global dict first
-    if doc and doc.exists:
-        data = doc.to_dict()
-        return DefinitionResponse(
-            word=word_key,
-            translated_context=data.get("translated_context", data.get("cebuano_context", "")), # fallback for old data
-            english_definition=data["english_definition"],
-            confused_with=data["confused_with"]
-        )
+    # Check global dict cache — only use if it has the current cache version
+    if cached_doc and cached_doc.exists:
+        data = cached_doc.to_dict()
+        if data.get("cache_version") == CACHE_VERSION:
+            return DefinitionResponse(
+                word=word_key,
+                translated_context=data.get("translated_context", ""),
+                english_definition=data["english_definition"],
+                confused_with=data["confused_with"]
+            )
 
     #then check mock
     if USE_MOCK:
@@ -204,6 +207,7 @@ async def define_word(request: DefinitionRequest):
                 "translated_context": target_lang_context,
                 "english_definition": english,
                 "confused_with": confused,
+                "cache_version": CACHE_VERSION,
                 "createdAt": SERVER_TIMESTAMP
             })
 
@@ -215,10 +219,9 @@ async def define_word(request: DefinitionRequest):
         )
 
     except Exception as e:
-        # If the API fails, we still return the structure so the frontend doesn't break
         return DefinitionResponse(
             word=request.word,
-            translated_context="Sayop sa pagkonektar sa AI.",
+            translated_context="",
             english_definition=f"Error: {str(e)}",
             confused_with=[]
         )
