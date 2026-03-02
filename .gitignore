@@ -29,3 +29,5 @@ Thumbs.db
 
 # Testing
 coverage/
+
+serviceAccountKey.json
