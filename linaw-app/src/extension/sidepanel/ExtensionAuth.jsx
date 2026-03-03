@@ -8,6 +8,7 @@ import {
 import { doc, setDoc } from "firebase/firestore";
 import { createNotebook } from "../../services/notebookService";
 import { Loader2, Mail, Lock, User } from "lucide-react";
+import logoLinaw from "../../assets/logo-linaw.svg";
 
 export default function ExtensionAuth() {
     const [isLogin, setIsLogin] = useState(true);
@@ -57,8 +58,8 @@ export default function ExtensionAuth() {
         <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center p-6">
             <div className="w-full max-w-sm bg-white rounded-2xl shadow-sm border border-gray-100 p-8 flex flex-col gap-6">
                 <div className="flex flex-col items-center gap-2">
-                    <div className="w-12 h-12 bg-[#3DBDB4]/10 rounded-xl flex items-center justify-center mb-2">
-                        <span className="text-2xl">✨</span>
+                    <div className="w-12 h-12 flex items-center justify-center mb-2">
+                        <img src={logoLinaw} alt="Linaw Logo" className="w-full h-full object-contain" />
                     </div>
                     <h2 className="text-2xl font-black text-[#2D3748] tracking-tight">
                         Linaw <span className="text-[#3DBDB4]">{isLogin ? "Login" : "Register"}</span>
@@ -83,7 +84,7 @@ export default function ExtensionAuth() {
                             <input
                                 type="text"
                                 placeholder="Full Name"
-                                className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-[#3DBDB4]/20 focus:border-[#3DBDB4] outline-none transition-all placeholder:text-gray-400"
+                                className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium text-gray-900 focus:ring-2 focus:ring-[#3DBDB4]/20 focus:border-[#3DBDB4] outline-none transition-all placeholder:text-gray-400"
                                 value={fullName}
                                 onChange={(e) => setFullName(e.target.value)}
                                 required={!isLogin}
@@ -98,7 +99,7 @@ export default function ExtensionAuth() {
                         <input
                             type="email"
                             placeholder="Email Address"
-                            className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-[#3DBDB4]/20 focus:border-[#3DBDB4] outline-none transition-all placeholder:text-gray-400"
+                            className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium text-gray-900 focus:ring-2 focus:ring-[#3DBDB4]/20 focus:border-[#3DBDB4] outline-none transition-all placeholder:text-gray-400"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             required
@@ -112,7 +113,7 @@ export default function ExtensionAuth() {
                         <input
                             type="password"
                             placeholder="Password"
-                            className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-[#3DBDB4]/20 focus:border-[#3DBDB4] outline-none transition-all placeholder:text-gray-400"
+                            className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium text-gray-900 focus:ring-2 focus:ring-[#3DBDB4]/20 focus:border-[#3DBDB4] outline-none transition-all placeholder:text-gray-400"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             required
