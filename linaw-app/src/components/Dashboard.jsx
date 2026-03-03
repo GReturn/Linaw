@@ -87,7 +87,6 @@ export default function Dashboard({ searchTerm = "" }) {
           </div>
         )}
 
-        {/* Dynamic Grid */}
         <div className="
           flex
           flex-wrap

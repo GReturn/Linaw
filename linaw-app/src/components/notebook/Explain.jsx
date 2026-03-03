@@ -605,23 +605,23 @@ const Explain = ({
                         </div>
                     )}
 
-                    {confusionTerms.length > 0 && (
-                        <div className="bg-[#FF6B6B]/5 border border-[#FF6B6B]/20 rounded-xl p-4">
-                            <div className="flex items-center gap-2 mb-3 text-[#FF6B6B]">
-                                <AlertCircle size={14} />
-                                <span className="text-[10px] font-black uppercase tracking-widest">Not to be confused with</span>
+                        {settings.showConfusedWords && confusionTerms.length > 0 && (
+                            <div className="bg-[#FF6B6B]/5 border border-[#FF6B6B]/20 rounded-xl p-4">
+                                <div className="flex items-center gap-2 mb-3 text-[#FF6B6B]">
+                                    <AlertCircle size={14} />
+                                    <span className="text-[10px] font-black uppercase tracking-widest">Not to be confused with</span>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                    {confusionTerms.map((term) => (
+                                        <button key={term} onClick={() => handleHistoryItemClick(term)} className="text-[10px] px-3 py-1.5 bg-white border border-[#FF6B6B]/20 rounded-md font-bold text-gray-600 hover:bg-[#FF6B6B] hover:text-white transition-all shadow-sm">
+                                            {term}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
-                            <div className="flex flex-wrap gap-2">
-                                {confusionTerms.map((term) => (
-                                    <button key={term} onClick={() => handleHistoryItemClick(term)} className="text-[10px] px-3 py-1.5 bg-white border border-[#FF6B6B]/20 rounded-md font-bold text-gray-600 hover:bg-[#FF6B6B] hover:text-white transition-all shadow-sm">
-                                        {term}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-                </>
-            )}
+                        )}
+                    </>
+                )}
             </aside>
 
             {/* Fullscreen Image Modal */}

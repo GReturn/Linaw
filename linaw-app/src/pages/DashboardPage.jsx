@@ -4,6 +4,7 @@ import Dashboard from "../components/Dashboard";
 import { useAuth } from "../context/AuthContext";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "../services/firebase";
+import { Search } from "lucide-react";
 
 export default function DashboardPage() {
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
