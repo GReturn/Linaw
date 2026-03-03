@@ -4,7 +4,17 @@ import { useAuth } from '../../context/AuthContext';
 import { notebookService } from '../../services/notebookService';
 import { MAX_WORD_COUNT, TOO_MANY_WORDS_MESSAGE } from '../../services/selectionValidator';
 
-export default function ExtensionExplain({ selectedWord, wordCount, targetLanguage, onHistoryItemClick }) {
+const ENABLE_NGRAM_CORRECTION = false; // Toggle this to enable/disable "Did you mean" suggestions
+const USE_MOCK_DATA = true; // Toggle this to use local mock data instead of API calls
+
+const MOCK_DEFINITION = {
+    term: "Linaw",
+    english_definition: "A Cebuano word meaning 'clear', 'tranquil', or 'transparent'. In the context of this application, it refers to a tool designed to make complex text clear and accessible through AI-powered explanations and translations.",
+    translated_context: "Ang 'Linaw' usa ka pulong sa Sugboanon nga nagpasabut og 'tin-aw', 'malinawon', o 'dayag'. Niini nga aplikasyon, kini nagtumong sa usa ka himan nga gidisenyo aron himoon ang komplikadong teksto nga tin-aw ug masabtan pinaagi sa mga katin-awan ug hubad nga gigamitan og AI.",
+    confused_with: ["Tin-aw", "Hapsay", "Kalinaw"]
+};
+
+export default function ExtensionExplain({ selectedWord, wordCount, targetLanguage, contextText, onHistoryItemClick }) {
     const { user } = useAuth();
     const [loading, setLoading] = useState(false);
     const [isTranslating, setIsTranslating] = useState(false);
