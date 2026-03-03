@@ -6,7 +6,7 @@ import { db } from '../services/firebase';
 import { useAuth } from "../context/AuthContext";
 import { createNotebook } from '../services/notebookService';
 
-export default function Dashboard() {
+export default function Dashboard({ searchTerm = "" }) {
   const { user } = useAuth();
   const [notebooks, setNotebooks] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -63,6 +63,10 @@ export default function Dashboard() {
     }
   };
 
+  const filteredNotebooks = notebooks.filter(nb =>
+    nb.title.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
     <section className="mb-32 px-6">
 
@@ -84,10 +88,8 @@ export default function Dashboard() {
         )}
 
         <div className="
-          grid
-          grid-cols-1
-          sm:grid-cols-2
-          lg:grid-cols-4
+          flex
+          flex-wrap
           gap-12
           w-full
         ">
@@ -95,7 +97,7 @@ export default function Dashboard() {
           {/* Create Notebook Tile */}
           <button
             onClick={() => setShowModal(true)}
-            className="group rounded-[28px] border-2 border-dashed border-[#3DBDB4]/40 hover:border-[#3DBDB4] bg-[#3DBDB4]/5 hover:bg-[#3DBDB4]/10 flex flex-col items-center justify-center py-16 transition-all duration-300 hover:shadow-xl hover:-translate-y-2"
+            className="group w-[260px] h-[260px] rounded-[28px] border-2 border-dashed border-[#3DBDB4]/40 hover:border-[#3DBDB4] bg-[#3DBDB4]/5 hover:bg-[#3DBDB4]/10 flex flex-col items-center justify-center transition-all duration-300 hover:shadow-xl hover:-translate-y-2 shrink-0"
           >
             <div className="w-20 h-20 bg-white rounded-3xl shadow-md flex items-center justify-center mb-6 group-hover:scale-110 group-hover:bg-[#3DBDB4] group-hover:text-white text-[#3DBDB4] transition-all duration-300">
               <Plus size={36} strokeWidth={3} />
@@ -113,19 +115,19 @@ export default function Dashboard() {
           )}
 
           {/* Notebooks */}
-          {!isLoading && notebooks.map((notebook) => (
+          {!isLoading && filteredNotebooks.map((notebook) => (
             <button
               key={notebook.id}
               onClick={() => navigate(`/notebook/${notebook.id}`)}
-              className="group rounded-[28px] bg-white border border-gray-200 flex flex-col items-center justify-center py-16 transition-all duration-300 shadow-sm hover:shadow-2xl hover:-translate-y-2 relative overflow-hidden"
+              className="group w-[260px] h-[260px] rounded-[28px] bg-white border border-gray-200 flex flex-col items-center justify-center transition-all duration-300 shadow-sm hover:shadow-2xl hover:-translate-y-2 relative overflow-hidden shrink-0"
             >
               <div className="absolute inset-0 bg-gradient-to-br from-[#FFD93C]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
 
-              <div className="w-20 h-20 bg-[#FFF9F0] rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 group-hover:bg-[#2D3748] text-[#2D3748] group-hover:text-white transition-all duration-300 relative z-10">
+              <div className="w-20 h-20 bg-[#FFF9F0] rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 group-hover:bg-[#2D3748] text-[#2D3748] group-hover:text-white transition-all duration-300 relative z-10 shrink-0">
                 <BookOpen size={32} />
               </div>
 
-              <span className="font-bold text-[#2D3748] px-6 text-center truncate w-full relative z-10 text-lg">
+              <span className="font-bold text-[#2D3748] px-6 text-center truncate w-full relative z-10 text-lg block">
                 {notebook.title}
               </span>
             </button>
