@@ -182,10 +182,12 @@ const InteractiveReader = () => {
       unsubscribeDocs = onSnapshot(
         collection(db, "users", user.uid, "notebooks", id, "documents"),
         (snapshot) => {
-          const docs = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-          }));
+          const docs = snapshot.docs
+            .map(doc => ({
+              id: doc.id,
+              ...doc.data()
+            }))
+            .filter(doc => !doc._placeholder);
 
           setDocuments(docs);
 
