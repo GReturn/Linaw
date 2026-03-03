@@ -44,13 +44,6 @@ export default function SettingsPage() {
 
             {/* Display Section */}
             <SettingsSection title="Explanation Display">
-              
-              <SettingToggle
-                title="Show illustration images"
-                description="Display diagrams or visual aids when available."
-                enabled={settings.showImage}
-                onToggle={() => toggleSetting("showImage")}
-              />
 
               <SettingToggle
                 title="Show English definition"
@@ -60,10 +53,17 @@ export default function SettingsPage() {
               />
 
               <SettingToggle
-                title="Show Language context"
+                title="Show language context"
                 description="Display the explanation rewritten in the target language for deeper understanding."
                 enabled={settings.showLanguageContext}
                 onToggle={() => toggleSetting("showLanguageContext")}
+              />
+
+              <SettingToggle
+                title="Show three words confused with the tapped word"
+                description="Display the three most commonly confused words when you tap a word."
+                enabled={settings.showConfusedWords}
+                onToggle={() => toggleSetting("showConfusedWords")}
               />
 
             </SettingsSection>

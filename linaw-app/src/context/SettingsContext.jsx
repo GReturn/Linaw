@@ -6,7 +6,7 @@ export const useSettings = () => useContext(SettingsContext);
 
 export const SettingsProvider = ({ children }) => {
   const [settings, setSettings] = useState({
-    showImage: true,
+    showConfusedWords: true,
     showEnglish: true,
     showLanguageContext: true,
     askBeforeDefining: true,

@@ -4,6 +4,7 @@ import Dashboard from "../components/Dashboard";
 import { useAuth } from "../context/AuthContext";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "../services/firebase";
+import { Search } from "lucide-react";
 
 export default function DashboardPage() {
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
@@ -45,7 +46,7 @@ export default function DashboardPage() {
       <div className="max-w-[1400px] mx-auto">
 
         {/* ===== Header Section ===== */}
-        <div className="mb-16">
+        <div className="mb-16 pl-10">
           <h1 className="text-6xl font-extrabold tracking-tight leading-[1.05]">
             Your notebooks,
             <span className="block text-[#4ECDC4]">
@@ -63,13 +64,28 @@ export default function DashboardPage() {
         <div className="flex items-center justify-between mb-12">
 
           {/* Search */}
-          <div className="relative w-[420px]">
-            <input
-              type="text"
-              placeholder="Search notebooks..."
-              className="w-full px-6 py-4 rounded-xl bg-white border border-gray-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#4ECDC4]"
+            <div className="relative w-[420px] pl-10">
+            <Search
+                size={18}
+                className="absolute left-14 top-1/2 -translate-y-1/2 text-gray-400 "
             />
-          </div>
+            <input
+                type="text"
+                placeholder="Search notebooks..."
+                className="
+                w-full
+                pl-12 pr-6
+                py-4
+                rounded-xl
+                bg-white
+                border border-gray-200
+                shadow-sm
+                focus:outline-none
+                focus:ring-2 focus:ring-[#4ECDC4]
+                transition-all
+                "
+            />
+            </div>
 
           {/* Optional subtle stat */}
           <div className="text-sm text-gray-500 font-medium">

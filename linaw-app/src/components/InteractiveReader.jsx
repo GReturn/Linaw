@@ -33,10 +33,11 @@ export default function InteractiveReader() {
   };
 
   return (
-    <div className="relative rounded-[2.5rem] bg-white border-4 border-[#4ECDC4] shadow-[8px_8px_0px_#2b9e96] overflow-hidden flex flex-col md:flex-row h-auto md:min-h-[600px] mb-32">
-
+    <div className="relative rounded-[2.5rem] bg-white border-4 border-[#4ECDC4] shadow-[8px_8px_0px_#2b9e96] overflow-hidden flex flex-col md:flex-row h-auto md:h-[360px]">
+      <div className="scale-[0.9] origin-top-left w-[111%] h-[111%]">
+        <div className="flex flex-col md:flex-row h-full">
       {/* Left Side: Document Reader */}
-      <div className="flex-1 overflow-y-auto p-8 md:p-12 bg-[#fafcfb]">
+      <div className="flex-1 overflow-y-auto p-8 md:p-12 bg-[#fafcfb] h-full">
         <div className="max-w-xl mx-auto">
           <div className="flex items-center gap-2 text-[#6b7280] mb-8 pb-4 border-b border-gray-200">
             <BookOpen size={20} />
@@ -65,7 +66,7 @@ export default function InteractiveReader() {
       </div>
 
       {/* Right Side: Explanation Panel */}
-      <div className="w-full md:w-[420px] bg-white border-t md:border-t-0 md:border-l border-gray-200 p-8 flex flex-col min-h-[500px] shadow-2xl md:shadow-none">
+      <div className="w-full md:w-[40%] bg-white border-t md:border-t-0 md:border-l border-gray-200 p-8 flex flex-col h-full overflow-y-auto">
         {activeWord && dictionary[activeWord] ? (
           <div key={activeWord} className="flex flex-col h-full animate-in fade-in slide-in-from-right-4 duration-300">
             <h2 className="text-sm font-bold tracking-wider text-gray-400 uppercase mb-2">Explanation</h2>
@@ -107,11 +108,6 @@ export default function InteractiveReader() {
                   </p>
                 </div>
 
-                <div className="pt-4 space-y-3">
-                  <button className="w-full bg-[#1f2933] text-white py-4 rounded-xl font-medium hover:bg-[#4f7f6a] hover:-translate-y-1 hover:shadow-lg transition-all duration-200 flex items-center justify-center gap-2">
-                    Explain Simpler <ChevronRight size={18} />
-                  </button>
-                </div>
               </div>
             )}
           </div>
@@ -121,7 +117,9 @@ export default function InteractiveReader() {
             <p className="font-medium">Tap a highlighted word to start your quest!</p>
           </div>
         )}
+        </div>
       </div>
+    </div>
     </div>
   );
 }

@@ -27,8 +27,23 @@ ReactDOM.createRoot(document.getElementById('root')).render(
               }
             />
             <Route path="/auth" element={<AuthPage />} />
-            <Route path="/notebook/dashboard" element={<DashboardPage />} />
-            <Route path="/settings" element={<SettingsPage />} />
+            <Route
+              path="/notebook/dashboard"
+              element={
+                <ProtectedRoute>
+                  <DashboardPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/settings"
+              element={
+                <ProtectedRoute>
+                  <SettingsPage />
+                </ProtectedRoute>
+              }
+            />
           </Routes>
         </BrowserRouter>
       </SettingsProvider>

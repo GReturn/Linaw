@@ -332,7 +332,7 @@ const Explain = ({
                             </div>
                         )}
 
-                        {confusionTerms.length > 0 && (
+                        {settings.showConfusedWords && confusionTerms.length > 0 && (
                             <div className="bg-[#FF6B6B]/5 border border-[#FF6B6B]/20 rounded-xl p-4">
                                 <div className="flex items-center gap-2 mb-3 text-[#FF6B6B]">
                                     <AlertCircle size={14} />

@@ -83,12 +83,13 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Dynamic Grid */}
         <div className="
           grid
+          grid-cols-1
+          sm:grid-cols-2
+          lg:grid-cols-4
           gap-12
           w-full
-          [grid-template-columns:repeat(auto-fit,minmax(260px,1fr))]
         ">
 
           {/* Create Notebook Tile */}

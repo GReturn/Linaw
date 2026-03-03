@@ -45,6 +45,7 @@ export const AuthProvider = ({ children }) => {
     const handleGoogleSignUp = async () => {
         try {
           await signInWithPopup(auth, googleProvider);
+          Navigate("/notebook/dashboard");
         } catch (error) {
           console.error("Google sign-in failed:", error);
         }
