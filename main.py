@@ -24,19 +24,11 @@ TRANSLATOR_URL = "https://spongebobrafael--linaw-translator-fastapi-app.modal.ru
 
 app = FastAPI()
 
-# Configure CORS
-origins = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-]
-frontend_url = os.environ.get("FRONTEND_URL")
-if frontend_url:
-    origins.append(frontend_url)
-
+# Configure CORS — allow all origins so the Chrome extension can reach the API
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )

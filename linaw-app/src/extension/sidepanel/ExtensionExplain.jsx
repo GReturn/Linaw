@@ -346,7 +346,7 @@ export default function ExtensionExplain({ selectedWord, wordCount, targetLangua
                     </p>
                     {errorMessage && (
                         <p className="text-[10px] font-bold text-gray-300 mt-2">
-                            Make sure the backend server is running on <span className="text-[#3DBDB4]">localhost:8000</span>
+                            Make sure you have an active internet connection and the <span className="text-[#3DBDB4]">Linaw API server</span> is available.
                         </p>
                     )}
                 </div>

@@ -27,7 +27,7 @@ export const getExplanation = async (userId, notebookId, term, language = "ceb")
   );
 
   try {
-    // --- STEP 1: Check the global dictionary first (cache hit = free) ---
+    // STEP 1: Check the global dictionary first (cache hit = free)
     const globalDocSnap = await getDoc(globalTranslationRef);
 
     let definitionData = null;
@@ -39,7 +39,8 @@ export const getExplanation = async (userId, notebookId, term, language = "ceb")
       console.log(`[GlobalDict] Cache miss for "${termKey}". Calling backend API.`);
 
       // --- STEP 2: Cache miss — call the backend /api/define endpoint ---
-      const response = await fetch("http://localhost:8000/api/define", {
+      const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8000";
+      const response = await fetch(`${apiUrl}/api/define`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -134,9 +135,9 @@ export const getHistory = async (userId, notebookId) => {
 
     return snapshot.docs
       .map(doc => doc.id)
-      //.map(doc => doc.data())
-      // .filter(d => d.term && !d._placeholder)  // exclude placeholders
-      // .map(d => d.term);
+    //.map(doc => doc.data())
+    // .filter(d => d.term && !d._placeholder)  // exclude placeholders
+    // .map(d => d.term);
 
   } catch (error) {
     console.error('[GlobalDict] Error fetching history:', error);
@@ -144,7 +145,7 @@ export const getHistory = async (userId, notebookId) => {
   }
 };
 
-// ─── Progressive loading: Phase 1 (definition only, fast) ─────────────────────
+// Progressive loading: Phase 1 (definition only, fast)
 
 /**
  * Phase 1: Fetches English definition + confused-with terms only.
@@ -187,8 +188,9 @@ export const getDefinitionOnly = async (userId, notebookId, term, language = "ce
     }
 
     // Cache miss — call the fast define-only endpoint
+    const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8000";
     console.log(`[GlobalDict] Definition cache miss for "${termKey}". Calling /api/define-only.`);
-    const response = await fetch("http://localhost:8000/api/define-only", {
+    const response = await fetch(`${apiUrl}/api/define-only`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -231,7 +233,7 @@ export const getDefinitionOnly = async (userId, notebookId, term, language = "ce
   }
 };
 
-// ─── Progressive loading: Phase 2 (translation, slow) ─────────────────────────
+// Progressive loading: Phase 2 (translation, slow)
 
 /**
  * Phase 2: Translates an English definition to the target language.
@@ -253,8 +255,9 @@ export const getTranslation = async (term, englishDefinition, language = "cebuan
     }
 
     // Cache miss — call the translation endpoint
+    const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8000";
     console.log(`[GlobalDict] Translation cache miss for "${termKey}". Calling /api/translate-definition.`);
-    const response = await fetch("http://localhost:8000/api/translate-definition", {
+    const response = await fetch(`${apiUrl}/api/translate-definition`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
