@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Sparkles, Volume2, AlertCircle, Maximize2 } from 'lucide-react';
+import { Sparkles, Volume2, AlertCircle, Maximize2, Loader, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, X as XIcon, ImageIcon as ImageSearchIcon } from 'lucide-react';
 import LinawLoader from '../../components/common/LinawLoader';
 import { useAuth } from '../../context/AuthContext';
 import { notebookService } from '../../services/notebookService';
@@ -24,10 +24,51 @@ export default function ExtensionExplain({ selectedWord, wordCount, targetLangua
     const [rejectedReason, setRejectedReason] = useState(null);
     const [errorMessage, setErrorMessage] = useState(null);
 
+    // Image state management
+    const [imageUrl, setImageUrl] = useState("");
+    const [showImage, setShowImage] = useState(false);
+    const [isFullscreen, setIsFullscreen] = useState(false);
+    const [isZoomed, setIsZoomed] = useState(false);
+    const [isSearchingImage, setIsSearchingImage] = useState(false);
+    const [imageError, setImageError] = useState(null);
+    const [imageSource, setImageSource] = useState("");
+    const [imageOffset, setImageOffset] = useState(0); // Track which image variant we're viewing
+
     // Ref to prevent wiping English definition on language switch
     const lastWordRef = useRef("");
 
     const tooManyWords = wordCount > MAX_WORD_COUNT;
+
+    // Clear image when word changes
+    useEffect(() => {
+        setImageUrl("");
+        setShowImage(false);
+        setImageError(null);
+        setImageOffset(0);
+    }, [selectedWord]);
+
+    // Handle escape key to close fullscreen
+    useEffect(() => {
+        const handleEscKey = (event) => {
+            if (event.key === 'Escape' && isFullscreen) {
+                closeFullscreen();
+            }
+        };
+        document.addEventListener('keydown', handleEscKey);
+        return () => document.removeEventListener('keydown', handleEscKey);
+    }, [isFullscreen]);
+
+    // Prevent body scroll when modal is open
+    useEffect(() => {
+        if (isFullscreen) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = 'unset';
+        }
+        return () => {
+            document.body.style.overflow = 'unset';
+        };
+    }, [isFullscreen]);
 
     useEffect(() => {
         const fetchProgressively = async () => {
@@ -154,6 +195,110 @@ export default function ExtensionExplain({ selectedWord, wordCount, targetLangua
         checkSuggestion();
         return () => { isMounted = false; };
     }, [selectedWord, contextText]);
+
+    /**
+     * Search Unsplash for images
+     */
+    const searchUnsplash = async (query, page = 1) => {
+        try {
+            // For Vite projects - adjust based on your environment
+            const apiKey = import.meta.env.VITE_APP_UNSPLASH_API_KEY;
+
+            // For testing only - uncomment and add your key
+            // const apiKey = 'YOUR_API_KEY_HERE';
+
+            if (!apiKey) {
+                console.warn('Unsplash API key not configured');
+                return null;
+            }
+
+            const response = await fetch(
+                `https://api.unsplash.com/search/photos?query=${encodeURIComponent(query)}&per_page=1&page=${page}&client_id=${apiKey}`
+            );
+            const data = await response.json();
+
+            if (data.results && data.results.length > 0) {
+                return data.results[0].urls.regular;
+            }
+            return null;
+        } catch (error) {
+            console.warn('Unsplash search failed:', error);
+            return null;
+        }
+    };
+
+    /**
+     * Enhanced image search with multiple fallbacks
+     */
+    const handleImageSearch = async (offset = 0) => {
+        if (!selectedWord) return;
+
+        setIsSearchingImage(true);
+        setImageError(null);
+
+        try {
+            // Try Unsplash first
+            let imageUrl = await searchUnsplash(selectedWord, offset + 1);
+            if (imageUrl) {
+                setImageUrl(imageUrl);
+                setImageSource("unsplash");
+                setShowImage(true);
+                setImageOffset(offset);
+                setIsSearchingImage(false);
+                return;
+            }
+
+            // If no image found
+            setImageError('No images found for this term.');
+
+        } catch (error) {
+            console.error('Image search error:', error);
+            setImageError('Unable to fetch image. Please try again.');
+        } finally {
+            setIsSearchingImage(false);
+        }
+    };
+
+    // Function to handle next image
+    const handleNextImage = () => {
+        handleImageSearch(imageOffset + 1);
+    };
+
+    // Function to handle previous image
+    const handlePreviousImage = () => {
+        if (imageOffset > 0) {
+            handleImageSearch(imageOffset - 1);
+        }
+    };
+
+    // Function to open fullscreen modal
+    const openFullscreen = () => {
+        setIsFullscreen(true);
+        setIsZoomed(false);
+    };
+
+    // Function to close fullscreen modal
+    const closeFullscreen = () => {
+        setIsFullscreen(false);
+        setIsZoomed(false);
+    };
+
+    // Toggle zoom in fullscreen
+    const toggleZoom = () => {
+        setIsZoomed(!isZoomed);
+    };
+
+    const handleImageLoadError = () => {
+        setImageError('Failed to load image. Please try another.');
+        setShowImage(false);
+    };
+
+    const copyImageUrl = () => {
+        if (imageUrl) {
+            navigator.clipboard.writeText(imageUrl);
+            console.log('Image URL copied to clipboard');
+        }
+    };
 
     const handleSuggestionClick = (correctedWord) => {
         if (!chrome || !chrome.storage) return;
@@ -312,10 +457,120 @@ export default function ExtensionExplain({ selectedWord, wordCount, targetLangua
                         </div>
                     )}
 
-                    <div className="bg-gray-50 aspect-video rounded-xl flex flex-col items-center justify-center border border-dashed border-gray-200">
-                        <Maximize2 size={24} className="text-gray-300 mb-1" />
-                        <p className="text-[9px] font-black text-gray-400 uppercase">Illustration</p>
-                    </div>
+                    {/* Image Error State */}
+                    {imageError && (
+                        <div className="bg-red-50 border border-red-100 rounded-xl p-4 flex items-start gap-2">
+                            <AlertCircle size={14} className="text-red-400 mt-0.5 flex-shrink-0" />
+                            <p className="text-xs text-red-600 font-medium">
+                                {imageError}
+                            </p>
+                        </div>
+                    )}
+
+                    {/* Image Search Button */}
+                    {!showImage && (
+                        <button
+                            onClick={() => handleImageSearch(0)}
+                            disabled={isSearchingImage}
+                            className="w-full py-3 bg-gradient-to-r from-[#3DBDB4] to-[#35a99f] text-white rounded-xl font-black text-xs uppercase tracking-wider hover:shadow-lg hover:shadow-[#3DBDB4]/20 transition-all duration-300 flex items-center justify-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {isSearchingImage ? (
+                                <>
+                                    <Loader size={16} className="animate-spin" />
+                                    Searching...
+                                </>
+                            ) : (
+                                <>
+                                    <ImageSearchIcon size={16} className="group-hover:scale-110 transition-transform" />
+                                    Search for related image
+                                </>
+                            )}
+                        </button>
+                    )}
+
+                    {/* Image display component */}
+                    {showImage && imageUrl && !isSearchingImage && (
+                        <div className="bg-gray-50 rounded-xl overflow-hidden border border-gray-200 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                            <div
+                                className="relative group cursor-pointer"
+                                onClick={openFullscreen}
+                            >
+                                <img
+                                    src={imageUrl}
+                                    alt={`Illustration for ${selectedWord || 'selected term'}`}
+                                    className="w-full h-auto aspect-video object-cover transition-transform duration-300 group-hover:scale-105"
+                                    onError={handleImageLoadError}
+                                />
+                                {/* Overlay with zoom icon on hover */}
+                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100">
+                                    <div className="bg-white/90 backdrop-blur-sm rounded-full p-2 transform scale-75 group-hover:scale-100 transition-all duration-300">
+                                        <ZoomIn size={20} className="text-[#2D3748]" />
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="p-3 bg-white border-t border-gray-100">
+                                {/* Top row: source info and buttons */}
+                                <div className="flex justify-between items-center mb-2">
+                                    <div className="flex-1">
+                                        <p className="text-[8px] font-mono text-gray-400 truncate max-w-[140px]">
+                                            {imageSource && <span className="capitalize font-bold text-gray-500">[{imageSource}]</span>}
+                                        </p>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            onClick={copyImageUrl}
+                                            className="text-[8px] font-black text-gray-400 hover:text-[#3DBDB4] uppercase tracking-wider flex items-center gap-1"
+                                            title="Copy image URL"
+                                        >
+                                            📋 Copy
+                                        </button>
+                                        <button
+                                            onClick={openFullscreen}
+                                            className="text-[8px] font-black text-[#3DBDB4] hover:text-[#35a99f] uppercase tracking-wider flex items-center gap-1"
+                                        >
+                                            <Maximize2 size={10} /> Expand
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                setShowImage(false);
+                                                setImageError(null);
+                                            }}
+                                            className="text-[8px] font-black text-gray-400 hover:text-gray-600 uppercase tracking-wider"
+                                        >
+                                            Hide
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Bottom row: Navigation arrows */}
+                                <div className="flex items-center justify-center gap-2">
+                                    <button
+                                        onClick={handlePreviousImage}
+                                        disabled={imageOffset === 0 || isSearchingImage}
+                                        className="flex items-center justify-center p-2 rounded-lg bg-gray-100 hover:bg-[#3DBDB4]/10 text-gray-600 hover:text-[#3DBDB4] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                                        title="Previous image"
+                                    >
+                                        <ChevronLeft size={16} />
+                                    </button>
+                                    <span className="text-[9px] font-bold text-gray-500">
+                                        {imageOffset + 1}
+                                    </span>
+                                    <button
+                                        onClick={handleNextImage}
+                                        disabled={isSearchingImage}
+                                        className="flex items-center justify-center p-2 rounded-lg bg-gray-100 hover:bg-[#3DBDB4]/10 text-gray-600 hover:text-[#3DBDB4] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                                        title="Next image"
+                                    >
+                                        {isSearchingImage ? (
+                                            <Loader size={16} className="animate-spin" />
+                                        ) : (
+                                            <ChevronRight size={16} />
+                                        )}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     {definition.confused_with && definition.confused_with.length > 0 && (
                         <div className="bg-[#FF6B6B]/5 border border-[#FF6B6B]/20 rounded-xl p-4 shadow-sm">
@@ -349,6 +604,85 @@ export default function ExtensionExplain({ selectedWord, wordCount, targetLangua
                             Make sure the backend server is running on <span className="text-[#3DBDB4]">localhost:8000</span>
                         </p>
                     )}
+                </div>
+            )}
+
+            {/* Fullscreen Image Modal */}
+            {isFullscreen && imageUrl && (
+                <div
+                    className="fixed inset-0 z-[9999] bg-black/95 backdrop-blur-xl flex items-center justify-center animate-in fade-in duration-300"
+                    onClick={closeFullscreen}
+                >
+                    {/* Close button */}
+                    <button
+                        className="absolute top-6 right-6 text-white/70 hover:text-white bg-black/20 hover:bg-black/40 rounded-full p-3 transition-all duration-300 z-10"
+                        onClick={closeFullscreen}
+                    >
+                        <XIcon size={24} />
+                    </button>
+
+                    {/* Previous image button */}
+                    {imageOffset > 0 && (
+                        <button
+                            className="absolute left-6 top-1/2 transform -translate-y-1/2 text-white/70 hover:text-white bg-black/20 hover:bg-black/40 rounded-full p-3 transition-all duration-300 z-10"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                handlePreviousImage();
+                            }}
+                        >
+                            <ChevronLeft size={24} />
+                        </button>
+                    )}
+
+                    {/* Next image button */}
+                    <button
+                        className="absolute right-6 top-1/2 transform -translate-y-1/2 text-white/70 hover:text-white bg-black/20 hover:bg-black/40 rounded-full p-3 transition-all duration-300 z-10"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            handleNextImage();
+                        }}
+                    >
+                        {isSearchingImage ? (
+                            <Loader size={24} className="animate-spin" />
+                        ) : (
+                            <ChevronRight size={24} />
+                        )}
+                    </button>
+
+                    {/* Zoom toggle button */}
+                    <button
+                        className={`absolute bottom-6 right-6 text-white/70 hover:text-white bg-black/20 hover:bg-black/40 rounded-full p-3 transition-all duration-300 z-10 ${isZoomed ? 'bg-[#3DBDB4]/20' : ''}`}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            toggleZoom();
+                        }}
+                    >
+                        {isZoomed ? <ZoomOut size={24} /> : <ZoomIn size={24} />}
+                    </button>
+
+                    {/* Image info */}
+                    <div className="absolute top-6 left-6 text-white/50 text-xs font-mono bg-black/20 px-3 py-2 rounded-full backdrop-blur-sm">
+                        {selectedWord && <span className="font-bold text-[#3DBDB4] mr-2">{selectedWord}</span>}
+                        Image {imageOffset + 1}
+                    </div>
+
+                    {/* Image container */}
+                    <div
+                        className={`max-w-[90vw] max-h-[90vh] transition-all duration-300 cursor-zoom ${isZoomed ? 'scale-150' : 'scale-100'}`}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <img
+                            src={imageUrl}
+                            alt={`Full size illustration for ${selectedWord || 'selected term'}`}
+                            className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
+                            onClick={toggleZoom}
+                        />
+                    </div>
+
+                    {/* Instructions */}
+                    <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 text-white/30 text-[10px] font-mono bg-black/20 px-4 py-2 rounded-full backdrop-blur-sm">
+                        Use arrows to navigate • Click image to zoom • ESC to close
+                    </div>
                 </div>
             )}
         </div>
