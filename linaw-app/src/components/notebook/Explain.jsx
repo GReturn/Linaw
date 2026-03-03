@@ -1,44 +1,9 @@
 import React from 'react';
-import { Sparkles, Loader2, Volume2, Maximize2, AlertCircle, Lightbulb, Check, X, Search } from 'lucide-react';
+import { Sparkles, Volume2, Maximize2, AlertCircle, Lightbulb, Check, X, Search } from 'lucide-react';
+import LinawLoader from '../common/LinawLoader';
 
 const SkeletonBlock = ({ className = "" }) => (
     <div className={`animate-pulse bg-gray-100 rounded-xl ${className}`} />
-);
-
-const DefinitionSkeleton = () => (
-    <div className="flex flex-col gap-4">
-        {/* Translation skeleton */}
-        <div className="border border-gray-100 rounded-xl p-4">
-            <div className="flex items-center gap-2 mb-3">
-                <SkeletonBlock className="h-5 w-5 !rounded" />
-                <SkeletonBlock className="h-2.5 w-24 !rounded-md" />
-            </div>
-            <SkeletonBlock className="h-3 w-full mb-2 !rounded-md" />
-            <SkeletonBlock className="h-3 w-3/4 !rounded-md" />
-        </div>
-        {/* Definition skeleton */}
-        <div className="border border-gray-100 rounded-xl p-4">
-            <div className="flex items-center gap-2 mb-3">
-                <SkeletonBlock className="h-5 w-5 !rounded" />
-                <SkeletonBlock className="h-2.5 w-28 !rounded-md" />
-            </div>
-            <SkeletonBlock className="h-3 w-full mb-2 !rounded-md" />
-            <SkeletonBlock className="h-3 w-5/6 mb-2 !rounded-md" />
-            <SkeletonBlock className="h-3 w-2/3 !rounded-md" />
-        </div>
-        {/* Confusion skeleton */}
-        <div className="border border-dashed border-gray-200 rounded-xl p-4">
-            <div className="flex items-center gap-2 mb-3">
-                <SkeletonBlock className="h-3.5 w-3.5 !rounded-full" />
-                <SkeletonBlock className="h-2.5 w-36 !rounded-md" />
-            </div>
-            <div className="flex gap-2">
-                <SkeletonBlock className="h-7 w-16 !rounded-md" />
-                <SkeletonBlock className="h-7 w-20 !rounded-md" />
-                <SkeletonBlock className="h-7 w-14 !rounded-md" />
-            </div>
-        </div>
-    </div>
 );
 
 const Explain = ({
@@ -105,12 +70,7 @@ const Explain = ({
             )}
 
             {/* Semantic gate loading (pre-confirm) */}
-            {loading && (
-                <div className="flex items-center justify-center gap-2 py-4">
-                    <Loader2 className="animate-spin text-gray-400" size={16} />
-                    <span className="text-xs text-gray-400 font-medium">Checking selection…</span>
-                </div>
-            )}
+            {loading && <LinawLoader text="Checking selection..." className="py-2" />}
 
             {/* N-gram suggestion banner */}
             {highlightSuggestion && (
@@ -147,8 +107,8 @@ const Explain = ({
                 </div>
             )}
 
-            {/* Definition loading skeleton (post-confirm) */}
-            {isDefining && <DefinitionSkeleton />}
+            {/* Definition loading (post-confirm) */}
+            {isDefining && <LinawLoader text="Defining..." />}
 
             {/* Content — only show when NOT loading the definition */}
             {!isDefining && (
@@ -158,12 +118,7 @@ const Explain = ({
                         <>
                             {isTranslating ? (
                                 <div className="border border-gray-100 rounded-xl p-4">
-                                    <div className="flex items-center gap-2 mb-3">
-                                        <SkeletonBlock className="h-5 w-5 !rounded" />
-                                        <SkeletonBlock className="h-2.5 w-24 !rounded-md" />
-                                    </div>
-                                    <SkeletonBlock className="h-3 w-full mb-2 !rounded-md" />
-                                    <SkeletonBlock className="h-3 w-3/4 !rounded-md" />
+                                    <LinawLoader text={`Translating to ${targetLanguage.split(' ')[0]}...`} className="py-2" />
                                 </div>
                             ) : definition && definition.translated_context ? (
                                 <div className="bg-white border border-[#3DBDB4]/20 rounded-xl p-4 transition-all duration-300">
