@@ -92,32 +92,44 @@ function extractContext(range, rawText, cleaned) {
     return fullContext || cleaned;
 }
 
-// On mouseup, always show the tooltip for any non-empty selection
-document.addEventListener("mouseup", function (e) {
-    if (tooltip && tooltip.contains(e.target)) return;
-
+/**
+ * Perform expansion on the browser selection and return the result.
+ * Called on demand when the background script sends GET_EXPANDED_SELECTION.
+ */
+function getExpandedSelection() {
     var sel = window.getSelection();
-    var text = sel ? sel.toString().trim() : "";
+    if (!sel || sel.rangeCount === 0 || !sel.toString().trim()) {
+        console.log("[Linaw] No active selection found");
+        return null;
+    }
 
-    if (text.length > 0) {
-        lastSelectedText = text;
-        setTimeout(function () {
-            var current = window.getSelection();
-            if (current && current.toString().trim() === text) {
-                showTooltip(e.pageX, e.pageY);
-            }
-        }, 80);
-    } else {
-        hideTooltip();
+    var rawText = sel.toString().trim();
+    var range = sel.getRangeAt(0);
+
+    console.log("[Linaw] Raw selection:", JSON.stringify(rawText));
+
+    // Expand to full word boundaries
+    var expanded = expandToWordBoundaries(rawText, range);
+    var cleaned = expanded.replace(/[^a-zA-Z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
+
+    if (!cleaned) return null;
+
+    var contextText = extractContext(range, rawText, cleaned);
+
+    console.log("[Linaw] Final result - word:", JSON.stringify(cleaned), "context length:", contextText.length);
+
+    return {
+        word: cleaned,
+        wordCount: cleaned.split(/\s+/).filter(Boolean).length,
+        contextText: contextText
+    };
+}
+
+// Listen for messages from the background script asking for the expanded text.
+// This does the expansion ON DEMAND using the CURRENT selection, not a cached value.
+chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
+    if (request.type === "GET_EXPANDED_SELECTION") {
+        var result = getExpandedSelection();
+        sendResponse(result || { word: "", wordCount: 0, contextText: "" });
     }
 });
-
-// On mousedown, hide if clicking outside tooltip
-document.addEventListener("mousedown", function (e) {
-    if (tooltip && !tooltip.contains(e.target)) {
-        hideTooltip();
-    }
-});
-
-// Initialize
-createTooltip();
