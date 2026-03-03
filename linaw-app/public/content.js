@@ -1,130 +1,135 @@
 // content.js
-// Injected into all pages. Listens for user highlighting text, shows tooltip, sends word to background.
+// Injected into all pages. Expands highlighted text to word boundaries
+// and provides the result to the background script on demand via messaging.
 
-var MAX_WORD_COUNT = 5; // Mirror of selectionValidator.js MAX_WORD_COUNT (plain JS copy for content script)
+var BLOCK_TAGS = ["P", "DIV", "LI", "TD", "TH", "SECTION", "ARTICLE", "BLOCKQUOTE", "H1", "H2", "H3", "H4", "H5", "H6", "BODY"];
 
-let tooltip = null;
-let lastSelectedText = ""; // Cache the selected text so it survives mousedown clearing
-
-var TOOLTIP_HTML = '<div style="display:flex;align-items:center;gap:6px;"><span style="font-size:14px;">✨</span><span>Explain with Linaw</span></div>';
-
-function createTooltip() {
-    if (tooltip) return;
-
-    tooltip = document.createElement("div");
-    tooltip.id = "linaw-extension-tooltip";
-    tooltip.innerHTML = TOOLTIP_HTML;
-
-    Object.assign(tooltip.style, {
-        position: "absolute",
-        display: "none",
-        backgroundColor: "#2D3748",
-        color: "white",
-        padding: "8px 12px",
-        borderRadius: "8px",
-        fontSize: "12px",
-        fontWeight: "bold",
-        fontFamily: "system-ui, -apple-system, sans-serif",
-        cursor: "pointer",
-        boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
-        zIndex: "999999",
-        transition: "opacity 0.15s ease-in-out",
-        opacity: "0",
-        pointerEvents: "none",
-        userSelect: "none",
-        whiteSpace: "nowrap"
-    });
-
-    // Prevent mousedown on the tooltip from clearing the text selection
-    tooltip.addEventListener("mousedown", function (e) {
-        e.preventDefault();
-        e.stopPropagation();
-    });
-
-    // On click, always send the cached word regardless of length — sidebar will validate and display the error if needed
-    tooltip.addEventListener("click", function (e) {
-        e.preventDefault();
-        e.stopPropagation();
-
-        var text = lastSelectedText;
-        if (!text) { hideTooltip(); return; }
-
-        var wordCount = text.split(/\s+/).filter(Boolean).length;
-        console.log("[Linaw] Sending word to background:", text, "wordCount:", wordCount);
-
-        chrome.runtime.sendMessage(
-            { type: "EXPLAIN_WORD", word: text, wordCount: wordCount },
-            function (response) {
-                if (chrome.runtime.lastError) {
-                    console.error("[Linaw] Error:", chrome.runtime.lastError.message);
-                } else {
-                    console.log("[Linaw] Message sent, response:", response);
-                }
-            }
-        );
-
-        hideTooltip();
-    });
-
-    // Hover effect
-    tooltip.addEventListener("mouseenter", function () {
-        tooltip.style.backgroundColor = "#1A202C";
-    });
-    tooltip.addEventListener("mouseleave", function () {
-        tooltip.style.backgroundColor = "#2D3748";
-    });
-
-    document.body.appendChild(tooltip);
-}
-
-function showTooltip(x, y) {
-    if (!tooltip) createTooltip();
-    tooltip.style.left = x + "px";
-    tooltip.style.top = (y - 45) + "px";
-    tooltip.style.display = "block";
-    tooltip.offsetWidth; // force reflow
-    tooltip.style.opacity = "1";
-    tooltip.style.pointerEvents = "auto";
-}
-
-function hideTooltip() {
-    if (tooltip) {
-        tooltip.style.opacity = "0";
-        tooltip.style.pointerEvents = "none";
-        setTimeout(function () {
-            if (tooltip && tooltip.style.opacity === "0") {
-                tooltip.style.display = "none";
-            }
-        }, 150);
+/**
+ * Walk up the DOM from `el` to the nearest block-level parent.
+ */
+function findBlockParent(el) {
+    while (el && el.parentElement && BLOCK_TAGS.indexOf(el.tagName) === -1) {
+        el = el.parentElement;
     }
+    return el;
 }
 
-// On mouseup, always show the tooltip for any non-empty selection
-document.addEventListener("mouseup", function (e) {
-    if (tooltip && tooltip.contains(e.target)) return;
+/**
+ * Expand a raw selected string to full word boundaries by scanning the
+ * surrounding text from the nearest block-level parent element.
+ *
+ * Key: normalizes whitespace (\n, \t, multiple spaces) so that "ting deta"
+ * is correctly found inside "listing\n    details".
+ */
+function expandToWordBoundaries(rawText, range) {
+    var ancestor = range.commonAncestorContainer;
+    if (ancestor.nodeType === Node.TEXT_NODE) ancestor = ancestor.parentElement;
+    ancestor = findBlockParent(ancestor);
 
+    var rawSurrounding = ancestor ? ancestor.textContent : rawText;
+    if (!rawSurrounding) return rawText;
+
+    // Normalize whitespace in both strings so matching works on real webpages
+    var surrounding = rawSurrounding.replace(/\s+/g, " ");
+    var needle = rawText.replace(/\s+/g, " ").trim();
+
+    if (!needle) return rawText;
+
+    var idx = surrounding.indexOf(needle);
+    if (idx === -1) {
+        idx = surrounding.toLowerCase().indexOf(needle.toLowerCase());
+    }
+    if (idx === -1) {
+        console.log("[Linaw] Could not find selection in surrounding text.",
+            "Needle:", JSON.stringify(needle),
+            "Surrounding (first 200):", JSON.stringify(surrounding.slice(0, 200)));
+        return rawText;
+    }
+
+    // Expand backwards to word boundary
+    var startIdx = idx;
+    while (startIdx > 0 && /[a-zA-Z0-9]/.test(surrounding[startIdx - 1])) {
+        startIdx--;
+    }
+
+    // Expand forwards to word boundary
+    var endIdx = idx + needle.length;
+    while (endIdx < surrounding.length && /[a-zA-Z0-9]/.test(surrounding[endIdx])) {
+        endIdx++;
+    }
+
+    var expanded = surrounding.slice(startIdx, endIdx).trim();
+    console.log("[Linaw] Expansion:", JSON.stringify(rawText), "→", JSON.stringify(expanded));
+    return expanded;
+}
+
+/**
+ * Extract and truncate block-level context text around the selection.
+ */
+function extractContext(range, rawText, cleaned) {
+    var contextNode = range.commonAncestorContainer;
+    if (contextNode.nodeType === Node.TEXT_NODE) {
+        contextNode = contextNode.parentElement;
+    }
+    contextNode = findBlockParent(contextNode);
+
+    var fullContext = contextNode ? contextNode.textContent : cleaned;
+    // Normalize whitespace
+    if (fullContext) fullContext = fullContext.replace(/\s+/g, " ").trim();
+
+    // Truncate if too long
+    if (fullContext && fullContext.length > 1000) {
+        var normalizedRaw = rawText.replace(/\s+/g, " ").trim();
+        var idx = fullContext.indexOf(normalizedRaw);
+        if (idx === -1) idx = fullContext.toLowerCase().indexOf(normalizedRaw.toLowerCase());
+        if (idx !== -1) {
+            var start = Math.max(0, idx - 250);
+            var end = Math.min(fullContext.length, idx + normalizedRaw.length + 250);
+            return fullContext.slice(start, end);
+        }
+        return fullContext.slice(0, 500);
+    }
+    return fullContext || cleaned;
+}
+
+/**
+ * Perform expansion on the browser selection and return the result.
+ * Called on demand when the background script sends GET_EXPANDED_SELECTION.
+ */
+function getExpandedSelection() {
     var sel = window.getSelection();
-    var text = sel ? sel.toString().trim() : "";
+    if (!sel || sel.rangeCount === 0 || !sel.toString().trim()) {
+        console.log("[Linaw] No active selection found");
+        return null;
+    }
 
-    if (text.length > 0) {
-        lastSelectedText = text;
-        setTimeout(function () {
-            var current = window.getSelection();
-            if (current && current.toString().trim() === text) {
-                showTooltip(e.pageX, e.pageY);
-            }
-        }, 80);
-    } else {
-        hideTooltip();
+    var rawText = sel.toString().trim();
+    var range = sel.getRangeAt(0);
+
+    console.log("[Linaw] Raw selection:", JSON.stringify(rawText));
+
+    // Expand to full word boundaries
+    var expanded = expandToWordBoundaries(rawText, range);
+    var cleaned = expanded.replace(/[^a-zA-Z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
+
+    if (!cleaned) return null;
+
+    var contextText = extractContext(range, rawText, cleaned);
+
+    console.log("[Linaw] Final result - word:", JSON.stringify(cleaned), "context length:", contextText.length);
+
+    return {
+        word: cleaned,
+        wordCount: cleaned.split(/\s+/).filter(Boolean).length,
+        contextText: contextText
+    };
+}
+
+// Listen for messages from the background script asking for the expanded text.
+// This does the expansion ON DEMAND using the CURRENT selection, not a cached value.
+chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
+    if (request.type === "GET_EXPANDED_SELECTION") {
+        var result = getExpandedSelection();
+        sendResponse(result || { word: "", wordCount: 0, contextText: "" });
     }
 });
-
-// On mousedown, hide if clicking outside tooltip
-document.addEventListener("mousedown", function (e) {
-    if (tooltip && !tooltip.contains(e.target)) {
-        hideTooltip();
-    }
-});
-
-// Initialize
-createTooltip();
