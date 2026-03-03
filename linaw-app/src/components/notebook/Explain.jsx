@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Sparkles, Volume2, Maximize2, AlertCircle, Lightbulb, Check, X, Search, ChevronDown, Image as ImageIcon, ImageIcon as ImageSearchIcon, X as XIcon, ZoomIn, ZoomOut } from 'lucide-react';
+import { Sparkles, Volume2, Maximize2, AlertCircle, Lightbulb, Check, X, Search, ChevronDown, Image as ImageIcon, ImageIcon as ImageSearchIcon, X as XIcon, ZoomIn, ZoomOut, Loader, ChevronLeft, ChevronRight } from 'lucide-react';
 import LinawLoader from '../common/LinawLoader';
 import { useSettings } from "../../context/SettingsContext";
 
@@ -25,13 +25,25 @@ const Explain = ({
 }) => {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const dropdownRef = useRef(null);
-    // Add state for image URL and visibility
-    const [imageUrl, setImageUrl] = useState(""); // Insert image address here
+
+    // Image state management
+    const [imageUrl, setImageUrl] = useState("");
     const [showImage, setShowImage] = useState(false);
-    // Add state for fullscreen image modal
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [isZoomed, setIsZoomed] = useState(false);
+    const [isSearchingImage, setIsSearchingImage] = useState(false);
+    const [imageError, setImageError] = useState(null);
+    const [imageSource, setImageSource] = useState("");
+    const [imageOffset, setImageOffset] = useState(0); // Track which image variant we're viewing
     const modalRef = useRef(null);
+
+    // Clear image when word changes
+    useEffect(() => {
+        setImageUrl("");
+        setShowImage(false);
+        setImageError(null);
+        setImageOffset(0);
+    }, [selectedWord]);
 
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -90,23 +102,214 @@ const Explain = ({
 
     const showEmptyState = !selectedWord && !pendingWord && !loading && !isDefining;
 
-    // Function to handle image search
-    const handleImageSearch = () => {
-        // You can implement actual image search logic here
-        // For now, we'll just show the image that's in the state
-        if (imageUrl) {
+    /**
+     * Search Unsplash for images
+     */
+    const searchUnsplash = async (query, page = 1) => {
+        try {
+            const apiKey = process.env.REACT_APP_UNSPLASH_API_KEY;
+            if (!apiKey) {
+                console.warn('Unsplash API key not configured');
+                return null;
+            }
+
+            const response = await fetch(
+                `https://api.unsplash.com/search/photos?query=${encodeURIComponent(query)}&per_page=1&page=${page}&client_id=${apiKey}`
+            );
+            const data = await response.json();
+
+            if (data.results && data.results.length > 0) {
+                return data.results[0].urls.regular;
+            }
+            return null;
+        } catch (error) {
+            console.warn('Unsplash search failed:', error);
+            return null;
+        }
+    };
+
+    /**
+     * Search Pixabay for images
+     */
+    const searchPixabay = async (query, page = 1) => {
+        try {
+            const apiKey = process.env.REACT_APP_PIXABAY_API_KEY;
+            if (!apiKey) {
+                console.warn('Pixabay API key not configured');
+                return null;
+            }
+
+            const response = await fetch(
+                `https://pixabay.com/api/?q=${encodeURIComponent(query)}&image_type=photo&per_page=1&page=${page}&key=${apiKey}`
+            );
+            const data = await response.json();
+
+            if (data.hits && data.hits.length > 0) {
+                return data.hits[0].webformatURL;
+            }
+            return null;
+        } catch (error) {
+            console.warn('Pixabay search failed:', error);
+            return null;
+        }
+    };
+
+    /**
+     * Search using Pexels API (FREE - No key required for basic usage)
+     */
+    const searchPexels = async (query, page = 1) => {
+        try {
+            const response = await fetch(
+                `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=1&page=${page}`,
+                {
+                    headers: {
+                        'Authorization': 'wKQZWqjd1Mq8XKCLqVVhpjHvQVN6DM7RMyFChHD1Q5VxXH2z6QzKW5sJ'
+                    }
+                }
+            );
+            const data = await response.json();
+
+            if (data.photos && data.photos.length > 0) {
+                return data.photos[0].src.medium;
+            }
+            return null;
+        } catch (error) {
+            console.warn('Pexels search failed:', error);
+            return null;
+        }
+    };
+
+    /**
+     * Fallback: Use Lorem Picsum with offset for different images
+     */
+    const getLoremPicsumImage = (query, offset = 0) => {
+        // Create a hash from the query string for consistency
+        let hash = 0;
+        for (let i = 0; i < query.length; i++) {
+            const char = query.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash; // Convert to 32bit integer
+        }
+        const imageId = (Math.abs(hash) + offset) % 1000;
+        return `https://picsum.photos/500/300?random=${imageId}&query=${encodeURIComponent(query)}`;
+    };
+
+    /**
+     * Alternative fallback: Wikipedia Commons
+     */
+    const searchWikipediaCommons = async (query, page = 1) => {
+        try {
+            const response = await fetch(
+                `https://commons.wikimedia.org/w/api.php?action=query&list=search&srnamespace=6&srsearch=${encodeURIComponent(query)}&srlimit=1&sroffset=${(page - 1) * 1}&format=json&origin=*`
+            );
+            const data = await response.json();
+
+            if (data.query.search.length > 0) {
+                // Extract title and get the image
+                const title = data.query.search[0].title;
+                const imageResponse = await fetch(
+                    `https://commons.wikimedia.org/w/api.php?action=query&titles=${encodeURIComponent(title)}&prop=imageinfo&iiprop=url&format=json&origin=*`
+                );
+                const imageData = await imageResponse.json();
+                const pages = imageData.query.pages;
+                const page = Object.values(pages)[0];
+
+                if (page.imageinfo) {
+                    return page.imageinfo[0].url;
+                }
+            }
+            return null;
+        } catch (error) {
+            console.warn('Wikipedia Commons search failed:', error);
+            return null;
+        }
+    };
+
+    /**
+     * Enhanced image search with multiple fallbacks
+     */
+    const handleImageSearch = async (offset = 0) => {
+        if (!selectedWord) return;
+
+        setIsSearchingImage(true);
+        setImageError(null);
+
+        try {
+            // Try Unsplash first
+            let imageUrl = await searchUnsplash(selectedWord, offset + 1);
+            if (imageUrl) {
+                setImageUrl(imageUrl);
+                setImageSource("unsplash");
+                setShowImage(true);
+                setImageOffset(offset);
+                setIsSearchingImage(false);
+                return;
+            }
+
+            // Try Pixabay
+            imageUrl = await searchPixabay(selectedWord, offset + 1);
+            if (imageUrl) {
+                setImageUrl(imageUrl);
+                setImageSource("pixabay");
+                setShowImage(true);
+                setImageOffset(offset);
+                setIsSearchingImage(false);
+                return;
+            }
+
+            // Try Pexels (Usually works without API key)
+            imageUrl = await searchPexels(selectedWord, offset + 1);
+            if (imageUrl) {
+                setImageUrl(imageUrl);
+                setImageSource("pexels");
+                setShowImage(true);
+                setImageOffset(offset);
+                setIsSearchingImage(false);
+                return;
+            }
+
+            // Try Wikipedia Commons
+            imageUrl = await searchWikipediaCommons(selectedWord, offset + 1);
+            if (imageUrl) {
+                setImageUrl(imageUrl);
+                setImageSource("wikipedia");
+                setShowImage(true);
+                setImageOffset(offset);
+                setIsSearchingImage(false);
+                return;
+            }
+
+            // Final fallback: Lorem Picsum
+            const loremImage = getLoremPicsumImage(selectedWord, offset);
+            setImageUrl(loremImage);
+            setImageSource("picsum");
             setShowImage(true);
-        } else {
-            // Optionally set a default or search for an image based on selectedWord
-            setImageUrl("https://static.wikia.nocookie.net/jujutsu-kaisen/images/5/5a/Satoru_Gojo_arrives_on_the_battlefield_%28Anime%29.png/revision/latest?cb=20210226205256"); // Example fallback
-            setShowImage(true);
+            setImageOffset(offset);
+
+        } catch (error) {
+            console.error('Image search error:', error);
+            setImageError('Unable to fetch image. Please try again.');
+        } finally {
+            setIsSearchingImage(false);
+        }
+    };
+
+    // Function to handle next image
+    const handleNextImage = () => {
+        handleImageSearch(imageOffset + 1);
+    };
+
+    // Function to handle previous image
+    const handlePreviousImage = () => {
+        if (imageOffset > 0) {
+            handleImageSearch(imageOffset - 1);
         }
     };
 
     // Function to open fullscreen modal
     const openFullscreen = () => {
         setIsFullscreen(true);
-        setIsZoomed(false); // Reset zoom when opening
+        setIsZoomed(false);
     };
 
     // Function to close fullscreen modal
@@ -118,6 +321,18 @@ const Explain = ({
     // Toggle zoom in fullscreen
     const toggleZoom = () => {
         setIsZoomed(!isZoomed);
+    };
+
+    const handleImageLoadError = () => {
+        setImageError('Failed to load image. Please try another.');
+        setShowImage(false);
+    };
+
+    const copyImageUrl = () => {
+        if (imageUrl) {
+            navigator.clipboard.writeText(imageUrl);
+            console.log('Image URL copied to clipboard');
+        }
     };
 
     return (
@@ -275,46 +490,73 @@ const Explain = ({
                         </div>
                     )}
 
-                        {/* Image Search Button - Only show if there's a selected word */}
-                        {selectedWord && !showImage && (
-                            <button
-                                onClick={handleImageSearch}
-                                className="w-full py-3 bg-gradient-to-r from-[#3DBDB4] to-[#35a99f] text-white rounded-xl font-black text-xs uppercase tracking-wider hover:shadow-lg hover:shadow-[#3DBDB4]/20 transition-all duration-300 flex items-center justify-center gap-2 group"
-                            >
-                                <ImageSearchIcon size={16} className="group-hover:scale-110 transition-transform" />
-                                Search for related image
-                            </button>
-                        )}
+                    {/* Image Error State */}
+                    {imageError && (
+                        <div className="bg-red-50 border border-red-100 rounded-xl p-4 flex items-start gap-2">
+                            <AlertCircle size={14} className="text-red-400 mt-0.5 flex-shrink-0" />
+                            <p className="text-xs text-red-600 font-medium">
+                                {imageError}
+                            </p>
+                        </div>
+                    )}
 
-                        {/* Image display component - only shows when button is clicked */}
-                        {showImage && (
-                            <div className="bg-gray-50 rounded-xl overflow-hidden border border-gray-200 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                                <div
-                                    className="relative group cursor-pointer"
-                                    onClick={openFullscreen}
-                                >
-                                    <img
-                                        src={imageUrl}
-                                        alt={`Illustration for ${selectedWord || 'selected term'}`}
-                                        className="w-full h-auto aspect-video object-cover transition-transform duration-300 group-hover:scale-105"
-                                        onError={(e) => {
-                                            e.target.onerror = null;
-                                            e.target.src = "https://via.placeholder.com/400x225?text=Image+not+found";
-                                        }}
-                                    />
-                                    {/* Overlay with zoom icon on hover */}
-                                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100">
-                                        <div className="bg-white/90 backdrop-blur-sm rounded-full p-2 transform scale-75 group-hover:scale-100 transition-all duration-300">
-                                            <ZoomIn size={20} className="text-[#2D3748]" />
-                                        </div>
+                    {/* Image Search Button - Only show if there's a selected word */}
+                    {selectedWord && !showImage && (
+                        <button
+                            onClick={() => handleImageSearch(0)}
+                            disabled={isSearchingImage}
+                            className="w-full py-3 bg-gradient-to-r from-[#3DBDB4] to-[#35a99f] text-white rounded-xl font-black text-xs uppercase tracking-wider hover:shadow-lg hover:shadow-[#3DBDB4]/20 transition-all duration-300 flex items-center justify-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {isSearchingImage ? (
+                                <>
+                                    <Loader size={16} className="animate-spin" />
+                                    Searching...
+                                </>
+                            ) : (
+                                <>
+                                    <ImageSearchIcon size={16} className="group-hover:scale-110 transition-transform" />
+                                    Search for related image
+                                </>
+                            )}
+                        </button>
+                    )}
+
+                    {/* Image display component - only shows when button is clicked */}
+                    {showImage && imageUrl && !isSearchingImage && (
+                        <div className="bg-gray-50 rounded-xl overflow-hidden border border-gray-200 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                            <div
+                                className="relative group cursor-pointer"
+                                onClick={openFullscreen}
+                            >
+                                <img
+                                    src={imageUrl}
+                                    alt={`Illustration for ${selectedWord || 'selected term'}`}
+                                    className="w-full h-auto aspect-video object-cover transition-transform duration-300 group-hover:scale-105"
+                                    onError={handleImageLoadError}
+                                />
+                                {/* Overlay with zoom icon on hover */}
+                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100">
+                                    <div className="bg-white/90 backdrop-blur-sm rounded-full p-2 transform scale-75 group-hover:scale-100 transition-all duration-300">
+                                        <ZoomIn size={20} className="text-[#2D3748]" />
                                     </div>
                                 </div>
-                                <div className="p-2 bg-white border-t border-gray-100 flex justify-between items-center">
-                                    <p className="text-[8px] font-mono text-gray-400 truncate max-w-[140px]">
-                                        {/* Insert image address here - the image URL is stored in state */}
-                                        URL: {imageUrl || "Not set"}
-                                    </p>
+                            </div>
+                            <div className="p-3 bg-white border-t border-gray-100">
+                                {/* Top row: source info and buttons */}
+                                <div className="flex justify-between items-center mb-2">
+                                    <div className="flex-1">
+                                        <p className="text-[8px] font-mono text-gray-400 truncate max-w-[140px]">
+                                            {imageSource && <span className="capitalize font-bold text-gray-500">[{imageSource}]</span>}
+                                        </p>
+                                    </div>
                                     <div className="flex items-center gap-2">
+                                        <button
+                                            onClick={copyImageUrl}
+                                            className="text-[8px] font-black text-gray-400 hover:text-[#3DBDB4] uppercase tracking-wider flex items-center gap-1"
+                                            title="Copy image URL"
+                                        >
+                                            📋 Copy
+                                        </button>
                                         <button
                                             onClick={openFullscreen}
                                             className="text-[8px] font-black text-[#3DBDB4] hover:text-[#35a99f] uppercase tracking-wider flex items-center gap-1"
@@ -322,37 +564,68 @@ const Explain = ({
                                             <Maximize2 size={10} /> Expand
                                         </button>
                                         <button
-                                            onClick={() => setShowImage(false)}
+                                            onClick={() => {
+                                                setShowImage(false);
+                                                setImageError(null);
+                                            }}
                                             className="text-[8px] font-black text-gray-400 hover:text-gray-600 uppercase tracking-wider"
                                         >
                                             Hide
                                         </button>
                                     </div>
                                 </div>
-                            </div>
-                        )}
 
-                        {confusionTerms.length > 0 && (
-                            <div className="bg-[#FF6B6B]/5 border border-[#FF6B6B]/20 rounded-xl p-4">
-                                <div className="flex items-center gap-2 mb-3 text-[#FF6B6B]">
-                                    <AlertCircle size={14} />
-                                    <span className="text-[10px] font-black uppercase tracking-widest">Not to be confused with</span>
-                                </div>
-                                <div className="flex flex-wrap gap-2">
-                                    {confusionTerms.map((term) => (
-                                        <button key={term} onClick={() => handleHistoryItemClick(term)} className="text-[10px] px-3 py-1.5 bg-white border border-[#FF6B6B]/20 rounded-md font-bold text-gray-600 hover:bg-[#FF6B6B] hover:text-white transition-all shadow-sm">
-                                            {term}
-                                        </button>
-                                    ))}
+                                {/* Bottom row: Navigation arrows */}
+                                <div className="flex items-center justify-center gap-2">
+                                    <button
+                                        onClick={handlePreviousImage}
+                                        disabled={imageOffset === 0 || isSearchingImage}
+                                        className="flex items-center justify-center p-2 rounded-lg bg-gray-100 hover:bg-[#3DBDB4]/10 text-gray-600 hover:text-[#3DBDB4] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                                        title="Previous image"
+                                    >
+                                        <ChevronLeft size={16} />
+                                    </button>
+                                    <span className="text-[9px] font-bold text-gray-500">
+                                        {imageOffset + 1}
+                                    </span>
+                                    <button
+                                        onClick={handleNextImage}
+                                        disabled={isSearchingImage}
+                                        className="flex items-center justify-center p-2 rounded-lg bg-gray-100 hover:bg-[#3DBDB4]/10 text-gray-600 hover:text-[#3DBDB4] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                                        title="Next image"
+                                    >
+                                        {isSearchingImage ? (
+                                            <Loader size={16} className="animate-spin" />
+                                        ) : (
+                                            <ChevronRight size={16} />
+                                        )}
+                                    </button>
                                 </div>
                             </div>
-                        )}
-                    </>
-                )}
+                        </div>
+                    )}
+
+                    {confusionTerms.length > 0 && (
+                        <div className="bg-[#FF6B6B]/5 border border-[#FF6B6B]/20 rounded-xl p-4">
+                            <div className="flex items-center gap-2 mb-3 text-[#FF6B6B]">
+                                <AlertCircle size={14} />
+                                <span className="text-[10px] font-black uppercase tracking-widest">Not to be confused with</span>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                                {confusionTerms.map((term) => (
+                                    <button key={term} onClick={() => handleHistoryItemClick(term)} className="text-[10px] px-3 py-1.5 bg-white border border-[#FF6B6B]/20 rounded-md font-bold text-gray-600 hover:bg-[#FF6B6B] hover:text-white transition-all shadow-sm">
+                                        {term}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </>
+            )}
             </aside>
 
             {/* Fullscreen Image Modal */}
-            {isFullscreen && (
+            {isFullscreen && imageUrl && (
                 <div
                     className="fixed inset-0 z-[9999] bg-black/95 backdrop-blur-xl flex items-center justify-center animate-in fade-in duration-300"
                     onClick={closeFullscreen}
@@ -363,6 +636,34 @@ const Explain = ({
                         onClick={closeFullscreen}
                     >
                         <XIcon size={24} />
+                    </button>
+
+                    {/* Previous image button */}
+                    {imageOffset > 0 && (
+                        <button
+                            className="absolute left-6 top-1/2 transform -translate-y-1/2 text-white/70 hover:text-white bg-black/20 hover:bg-black/40 rounded-full p-3 transition-all duration-300 z-10"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                handlePreviousImage();
+                            }}
+                        >
+                            <ChevronLeft size={24} />
+                        </button>
+                    )}
+
+                    {/* Next image button */}
+                    <button
+                        className="absolute right-6 top-1/2 transform -translate-y-1/2 text-white/70 hover:text-white bg-black/20 hover:bg-black/40 rounded-full p-3 transition-all duration-300 z-10"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            handleNextImage();
+                        }}
+                    >
+                        {isSearchingImage ? (
+                            <Loader size={24} className="animate-spin" />
+                        ) : (
+                            <ChevronRight size={24} />
+                        )}
                     </button>
 
                     {/* Zoom toggle button */}
@@ -379,7 +680,7 @@ const Explain = ({
                     {/* Image info */}
                     <div className="absolute top-6 left-6 text-white/50 text-xs font-mono bg-black/20 px-3 py-2 rounded-full backdrop-blur-sm">
                         {selectedWord && <span className="font-bold text-[#3DBDB4] mr-2">{selectedWord}</span>}
-                        Click image or press ESC to close
+                        Image {imageOffset + 1}
                     </div>
 
                     {/* Image container */}
@@ -397,7 +698,7 @@ const Explain = ({
 
                     {/* Instructions */}
                     <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 text-white/30 text-[10px] font-mono bg-black/20 px-4 py-2 rounded-full backdrop-blur-sm">
-                        Click image to zoom • ESC to close
+                        Use arrows to navigate • Click image to zoom • ESC to close
                     </div>
                 </div>
             )}
