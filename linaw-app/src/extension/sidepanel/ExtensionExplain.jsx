@@ -343,9 +343,16 @@ export default function ExtensionExplain({ selectedWord, wordCount, targetLangua
                 </>
             ) : (
                 <div className="bg-white border border-gray-100 rounded-xl p-6 shadow-sm text-center flex flex-col items-center">
-                    <AlertCircle size={24} className="text-gray-300 mb-2" />
-                    <p className="text-sm font-bold text-gray-600">Definition not found</p>
-                    <p className="text-xs text-gray-400 mt-1">We couldn't analyze this term right now.</p>
+                    <AlertCircle size={24} className={errorMessage ? "text-red-400 mb-2" : "text-gray-300 mb-2"} />
+                    <p className="text-sm font-bold text-gray-600">{errorMessage ? "Connection Error" : "Definition not found"}</p>
+                    <p className="text-xs text-gray-400 mt-1">
+                        {errorMessage || "We couldn't analyze this term right now."}
+                    </p>
+                    {errorMessage && (
+                        <p className="text-[10px] font-bold text-gray-300 mt-2">
+                            Make sure the backend server is running on <span className="text-[#3DBDB4]">localhost:8000</span>
+                        </p>
+                    )}
                 </div>
             )}
         </div>
