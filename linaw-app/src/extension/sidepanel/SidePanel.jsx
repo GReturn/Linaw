@@ -4,12 +4,16 @@ import { useAuth } from "../../context/AuthContext";
 import ExtensionAuth from "./ExtensionAuth";
 import ExtensionExplain from "./ExtensionExplain";
 import ExtensionDictionary from "./ExtensionDictionary";
+import logoLinaw from "../../assets/logo-linaw.svg";
+
+const WEB_APP_URL = import.meta.env.VITE_WEB_URL || "http://localhost:5173";
 
 export default function SidePanel() {
   const { user, loading, logout } = useAuth();
   const [activeTab, setActiveTab] = useState("explain");
   const [selectedWord, setSelectedWord] = useState('');
   const [wordCount, setWordCount] = useState(0);
+  const [targetLanguage, setTargetLanguage] = useState("Cebuano (CEB)");
 
   // Listen for changes from the background script
   useEffect(() => {
@@ -58,17 +62,42 @@ export default function SidePanel() {
     <div className="flex flex-col h-screen bg-white overflow-hidden">
       {/* Header */}
       <div className="p-4 border-b border-gray-100 flex items-center justify-between shrink-0 bg-white">
-        <div className="flex items-center gap-2">
-          <img src="/logo.png" alt="Linaw Logo" className="w-6 h-6 object-contain" />
-          <h2 className="font-black text-lg tracking-tight text-[#2D3748]">Linaw</h2>
-        </div>
-        <button
-          onClick={logout}
-          className="p-1.5 text-gray-400 hover:text-[#FF6B6B] hover:bg-[#FF6B6B]/10 rounded-md transition-all border border-transparent hover:border-[#FF6B6B]/20"
-          title="Sign Out"
+        <a
+          href={WEB_APP_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+          title="Open Linaw web app"
         >
-          <LogOut size={16} />
-        </button>
+          <img src={logoLinaw} alt="Linaw Logo" className="w-6 h-6 object-contain" />
+          <h2 className="font-black text-lg tracking-tight text-[#2D3748]">Linaw</h2>
+        </a>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 px-3 py-1 bg-gray-50 rounded-full border border-gray-200 shadow-inner">
+            <select
+              value={targetLanguage}
+              onChange={(e) => setTargetLanguage(e.target.value)}
+              className="text-[9px] font-black text-gray-500 uppercase tracking-tighter bg-transparent outline-none cursor-pointer appearance-none text-center truncate max-w-[90px]"
+              style={{ textAlignLast: 'center' }}
+            >
+              <option value="None (EN)">NONE (EN)</option>
+              <option value="Tagalog (TGL)">TAGALOG (TGL)</option>
+              <option value="Cebuano (CEB)">CEBUANO (CEB)</option>
+              <option value="Waray (WAR)">WARAY (WAR)</option>
+              <option value="Ilocano (ILO)">ILOCANO (ILO)</option>
+              <option value="Pangasinense (PAG)">PANGASINENSE (PAG)</option>
+              <option value="Hiligaynon (HIL)">HILIGAYNON (HIL)</option>
+              <option value="Bikolano (BIK)">BIKOLANO (BIK)</option>
+            </select>
+          </div>
+          <button
+            onClick={logout}
+            className="p-1.5 text-gray-400 hover:text-[#FF6B6B] hover:bg-[#FF6B6B]/10 rounded-md transition-all border border-transparent hover:border-[#FF6B6B]/20"
+            title="Sign Out"
+          >
+            <LogOut size={16} />
+          </button>
+        </div>
       </div>
 
       {/* Tabs */}
@@ -93,6 +122,7 @@ export default function SidePanel() {
           <ExtensionExplain
             selectedWord={selectedWord}
             wordCount={wordCount}
+            targetLanguage={targetLanguage}
             onHistoryItemClick={handleHistoryItemClick}
           />
         ) : (
