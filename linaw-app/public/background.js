@@ -1,16 +1,7 @@
-// Allow the side panel to read session storage
-chrome.storage.session.setAccessLevel({ accessLevel: 'TRUSTED_AND_UNTRUSTED_CONTEXTS' });
+// background.js
+// Extension background service worker — manages side panel and context menu.
 
-chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true })
-  .catch(function (error) { console.error(error); });
-
-// listen for messages from the content script
-chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
-  if (request.type === 'EXPLAIN_WORD') {
-    handleExplainWord(request.word, request.wordCount || 0, sender.tab?.id, sendResponse);
-    return true; // keep message channel open for async sendResponse
-  }
-});
+chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
 
 // Create the context menu item when the extension is installed
 chrome.runtime.onInstalled.addListener(() => {
@@ -22,35 +13,54 @@ chrome.runtime.onInstalled.addListener(() => {
 });
 
 // Handle context menu clicks
-chrome.contextMenus.onClicked.addListener((info, tab) => {
-  if (info.menuItemId === "explain-with-linaw" && info.selectionText) {
-    const selectedText = info.selectionText.trim();
-    const wordCount = selectedText.split(/\s+/).length;
-    handleExplainWord(selectedText, wordCount, tab?.id);
+chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+  if (info.menuItemId !== "explain-with-linaw" || !info.selectionText) return;
+  if (!tab || !tab.id) return;
+
+  // IMPORTANT: Open the side panel FIRST, within the user gesture context.
+  // If we do any async work (like sendMessage) before this, the gesture expires
+  // and Edge/Chrome will silently refuse to open the panel.
+  try {
+    await chrome.sidePanel.setOptions({
+      tabId: tab.id,
+      path: "sidepanel.html",
+      enabled: true
+    });
+    await chrome.sidePanel.open({ windowId: tab.windowId });
+    console.log("[Linaw BG] Side panel opened for window:", tab.windowId);
+  } catch (err) {
+    console.error("[Linaw BG] Failed to open side panel:", err);
   }
-});
 
-// Shared handler for defining a word
-function handleExplainWord(word, wordCount, tabId, sendResponse = null) {
-  console.log("[Linaw BG] Received word to explain:", word);
+  // NOW do the async text expansion work (panel is already open)
+  try {
+    const results = await chrome.tabs.sendMessage(tab.id, { type: "GET_EXPANDED_SELECTION" });
 
-  chrome.storage.session.set({
-    linawSelectedWord: word,
-    linawWordCount: wordCount,
-  }).then(function () {
-    console.log("[Linaw BG] Saved word to session storage:", word);
-
-    // open the side panel
-    if (tabId) {
-      chrome.sidePanel.open({ tabId: tabId }).then(function () {
-        console.log("[Linaw BG] Side panel opened for tab:", tabId);
-        if (sendResponse) sendResponse({ success: true });
-      }).catch(function (err) {
-        console.error("[Linaw BG] Failed to open side panel:", err);
-        if (sendResponse) sendResponse({ success: false, error: err.message });
+    if (results && results.word) {
+      console.log("[Linaw BG] Got expanded text from content script:", results.word);
+      await chrome.storage.session.set({
+        linawSelectedWord: results.word,
+        linawWordCount: results.wordCount,
+        linawContextText: results.contextText
       });
     } else {
-      if (sendResponse) sendResponse({ success: false, error: "No sender tab" });
+      // Fallback: use the raw selectionText from the context menu
+      const fallbackText = info.selectionText.trim().replace(/[^a-zA-Z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
+      console.log("[Linaw BG] Falling back to raw selectionText:", fallbackText);
+      await chrome.storage.session.set({
+        linawSelectedWord: fallbackText,
+        linawWordCount: fallbackText.split(/\s+/).length,
+        linawContextText: fallbackText
+      });
     }
-  });
-}
+  } catch (err) {
+    // Content script not available (e.g. chrome:// pages) — use raw text
+    console.warn("[Linaw BG] Could not reach content script, using raw text:", err.message);
+    const fallbackText = info.selectionText.trim().replace(/[^a-zA-Z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
+    await chrome.storage.session.set({
+      linawSelectedWord: fallbackText,
+      linawWordCount: fallbackText.split(/\s+/).length,
+      linawContextText: fallbackText
+    });
+  }
+});
