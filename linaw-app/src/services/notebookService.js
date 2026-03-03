@@ -75,7 +75,8 @@ export const notebookService = {
     formData.append("notebook_id", notebookId);
     formData.append("user_id", userId);
 
-    const response = await fetch("http://localhost:8000/sources/upload", {
+    const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8000";
+    const response = await fetch(`${apiUrl}/sources/upload`, {
       method: "POST",
       body: formData
     });

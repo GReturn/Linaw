@@ -1,8 +1,15 @@
 [
   {
-    "origin": ["http://localhost:5173"],
-    "method": ["GET"],
-    "responseHeader": ["Content-Type"],
+    "origin": [
+      "http://localhost:5173",
+      "https://linaw-cebu.vercel.app"
+    ],
+    "method": [
+      "GET"
+    ],
+    "responseHeader": [
+      "Content-Type"
+    ],
     "maxAgeSeconds": 3600
   }
 ]
