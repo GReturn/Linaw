@@ -5,3 +5,4 @@ httpx
 pydantic
 firebase-admin
 google-genai
+python-multipart
