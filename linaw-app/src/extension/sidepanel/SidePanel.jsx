@@ -1,16 +1,15 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Book, History, LogOut, ChevronDown, Check } from "lucide-react";
+import { LogOut, ChevronDown, Check } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import ExtensionAuth from "./ExtensionAuth";
 import ExtensionExplain from "./ExtensionExplain";
-import ExtensionDictionary from "./ExtensionDictionary";
+// import ExtensionDictionary from "./ExtensionDictionary";
 import logoLinaw from "../../assets/logo-linaw.svg";
 
 const WEB_APP_URL = import.meta.env.VITE_WEB_URL || "http://localhost:5173";
 
 export default function SidePanel() {
   const { user, loading, logout } = useAuth();
-  const [activeTab, setActiveTab] = useState("explain");
   const [selectedWord, setSelectedWord] = useState('');
   const [wordCount, setWordCount] = useState(0);
   const [contextText, setContextText] = useState('');
@@ -50,21 +49,17 @@ export default function SidePanel() {
         setSelectedWord(result.linawSelectedWord);
         setWordCount(result.linawWordCount || 0);
         setContextText(result.linawContextText || '');
-        setActiveTab("explain");
       }
     });
 
     // Listen for future highlights
-    const storageListener = (changes, namespace) => {
-      if (namespace === 'session' && changes.linawSelectedWord) {
-        setSelectedWord(changes.linawSelectedWord.newValue);
-        setWordCount(changes.linawWordCount ? changes.linawWordCount.newValue : 0);
-        if (changes.linawContextText) {
-          setContextText(changes.linawContextText.newValue);
-        }
-        setActiveTab("explain");
+    if (namespace === 'session' && changes.linawSelectedWord) {
+      setSelectedWord(changes.linawSelectedWord.newValue);
+      setWordCount(changes.linawWordCount ? changes.linawWordCount.newValue : 0);
+      if (changes.linawContextText) {
+        setContextText(changes.linawContextText.newValue);
       }
-    };
+    }
 
     chrome.storage.onChanged.addListener(storageListener);
     return () => chrome.storage.onChanged.removeListener(storageListener);
@@ -73,7 +68,6 @@ export default function SidePanel() {
   const handleHistoryItemClick = (term) => {
     setSelectedWord(term);
     setContextText(term);
-    setActiveTab("explain");
   };
 
   if (loading) {
@@ -107,8 +101,8 @@ export default function SidePanel() {
             <button
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
               className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all duration-200 shadow-sm ${isDropdownOpen
-                  ? 'bg-white border-[#3DBDB4]/30 shadow-[#3DBDB4]/10 ring-2 ring-[#3DBDB4]/20'
-                  : 'bg-gray-50 hover:bg-white border-gray-200 hover:border-gray-300'
+                ? 'bg-white border-[#3DBDB4]/30 shadow-[#3DBDB4]/10 ring-2 ring-[#3DBDB4]/20'
+                : 'bg-gray-50 hover:bg-white border-gray-200 hover:border-gray-300'
                 }`}
             >
               <span className={`text-[10px] font-black uppercase tracking-wider ${isDropdownOpen ? 'text-[#3DBDB4]' : 'text-gray-500'
@@ -132,8 +126,8 @@ export default function SidePanel() {
                       setIsDropdownOpen(false);
                     }}
                     className={`w-full text-left px-4 py-2.5 text-xs font-bold transition-all ${targetLanguage === lang
-                        ? 'bg-[#3DBDB4]/10 text-[#3DBDB4]'
-                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                      ? 'bg-[#3DBDB4]/10 text-[#3DBDB4]'
+                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                       } flex items-center justify-between group`}
                   >
                     <span className="group-hover:translate-x-1 transition-transform">{lang}</span>
@@ -153,38 +147,14 @@ export default function SidePanel() {
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex p-1 bg-gray-100 mx-4 mt-4 rounded-lg shrink-0 border border-gray-200 shadow-inner">
-        <button
-          onClick={() => setActiveTab("explain")}
-          className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-xs font-bold transition-all ${activeTab === "explain" ? "bg-white shadow-sm text-[#3DBDB4]" : "text-gray-400 hover:text-gray-600"}`}
-        >
-          <Book size={14} /> Explain
-        </button>
-        <button
-          onClick={() => setActiveTab("dictionary")}
-          className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-xs font-bold transition-all ${activeTab === "dictionary" ? "bg-white shadow-sm text-[#FF6B6B]" : "text-gray-400 hover:text-gray-600"}`}
-        >
-          <History size={14} /> Dictionary
-        </button>
-      </div >
-
       {/* Content Area */}
-      {
-        activeTab === "explain" ? (
-          <ExtensionExplain
-            selectedWord={selectedWord}
-            wordCount={wordCount}
-            targetLanguage={targetLanguage}
-            contextText={contextText}
-            onHistoryItemClick={handleHistoryItemClick}
-          />
-        ) : (
-          <ExtensionDictionary
-            onHistoryItemClick={handleHistoryItemClick}
-          />
-        )
-      }
-    </div >
+      <ExtensionExplain
+        selectedWord={selectedWord}
+        wordCount={wordCount}
+        targetLanguage={targetLanguage}
+        contextText={contextText}
+        onHistoryItemClick={handleHistoryItemClick}
+      />
+    </div>
   );
 }
