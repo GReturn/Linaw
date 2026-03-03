@@ -124,6 +124,44 @@ export default function ExtensionExplain({ selectedWord, wordCount, targetLangua
         fetchProgressively();
     }, [selectedWord, wordCount, user, targetLanguage, tooManyWords]);
 
+    // Check for N-gram corrections whenever the selected word or context changes
+    useEffect(() => {
+        if (!ENABLE_NGRAM_CORRECTION) {
+            setSuggestion(null);
+            return;
+        }
+
+        let isMounted = true;
+        const checkSuggestion = async () => {
+            if (!selectedWord || !contextText) {
+                if (isMounted) setSuggestion(null);
+                return;
+            }
+            try {
+                const { findBestCandidate } = await import('../../services/ngramCorrector.js');
+                const result = findBestCandidate(selectedWord, contextText);
+                if (isMounted && result.suggestion) {
+                    setSuggestion(result.suggestion);
+                } else if (isMounted) {
+                    setSuggestion(null);
+                }
+            } catch (err) {
+                console.error("[Linaw Extension] Ngram check failed", err);
+            }
+        };
+        checkSuggestion();
+        return () => { isMounted = false; };
+    }, [selectedWord, contextText]);
+
+    const handleSuggestionClick = (correctedWord) => {
+        if (!chrome || !chrome.storage) return;
+        chrome.storage.session.set({
+            linawSelectedWord: correctedWord,
+            linawWordCount: correctedWord.split(/\s+/).length,
+            linawContextText: contextText
+        });
+    };
+
     // Helper to get abbreviation for the badge
     const getAbbreviation = (langStr) => {
         if (!langStr) return "CE";
