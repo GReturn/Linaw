@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Sparkles, Loader2, Volume2, AlertCircle, Maximize2 } from 'lucide-react';
+import { Sparkles, Volume2, AlertCircle, Maximize2 } from 'lucide-react';
+import LinawLoader from '../../components/common/LinawLoader';
 import { useAuth } from '../../context/AuthContext';
 import { notebookService } from '../../services/notebookService';
 import { MAX_WORD_COUNT, TOO_MANY_WORDS_MESSAGE } from '../../services/selectionValidator';
 
 const ENABLE_NGRAM_CORRECTION = false; // Toggle this to enable/disable "Did you mean" suggestions
-const USE_MOCK_DATA = true; // Toggle this to use local mock data instead of API calls
+const USE_MOCK_DATA = false; // Toggle this to use local mock data instead of API calls
 
 const MOCK_DEFINITION = {
     term: "Linaw",
@@ -254,21 +255,15 @@ export default function ExtensionExplain({ selectedWord, wordCount, targetLangua
             </div>
 
             {loading ? (
-                <div className="flex justify-center flex-col items-center py-12 gap-3">
-                    <Loader2 className="animate-spin text-[#3DBDB4]" size={28} />
-                    <span className="text-xs font-bold text-gray-400">Analyzing term...</span>
-                </div>
+                <LinawLoader text="Analyzing term..." className="py-4" />
             ) : definition ? (
                 <>
                     {/* Translation Section (Phase 2) */}
                     {targetLanguage !== "None (EN)" && (
                         <>
                             {isTranslating ? (
-                                <div className="border border-gray-100 rounded-xl p-6 flex flex-col items-center justify-center gap-3">
-                                    <Loader2 className="animate-spin text-[#3DBDB4]" size={20} />
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-                                        Translating to {targetLanguage.split(' ')[0]}...
-                                    </span>
+                                <div className="border border-gray-100 rounded-xl p-4">
+                                    <LinawLoader text={`Translating to ${targetLanguage.split(' ')[0]}...`} className="py-2" />
                                 </div>
                             ) : definition.translated_context ? (
                                 <div className="bg-white border border-[#3DBDB4]/20 rounded-xl p-4 shadow-sm transition-all duration-300">
