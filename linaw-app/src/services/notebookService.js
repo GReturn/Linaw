@@ -11,25 +11,6 @@ export const createNotebook = async (userId, title) => {
 
   const notebookPath = ["users", userId, "notebooks", docRef.id];
 
-  await addDoc(collection(db, ...notebookPath, "dictionary"), {
-    _placeholder: true,
-    term: "",
-    definition: "",
-    language: "",
-    example: "",
-    image_url: "",
-    image_source: "",
-    attribution: "",
-    createdAt: serverTimestamp(),
-    lastAccessed: serverTimestamp(),
-  });
-
-  await addDoc(collection(db, ...notebookPath, "documents"), {
-    _placeholder: true,
-    fileName: "",
-    fileURL: "",
-    uploadDate: serverTimestamp(),
-  });
 
   return { id: docRef.id, title };
 };

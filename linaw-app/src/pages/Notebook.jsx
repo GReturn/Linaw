@@ -4,6 +4,7 @@ import { Book, FileText, Sparkles } from 'lucide-react';
 import { pdfjs } from 'react-pdf';
 import { doc, getDoc } from 'firebase/firestore';
 import { collection, onSnapshot } from "firebase/firestore";
+import { useSettings } from "../context/SettingsContext";
 
 // Core Styles
 import 'react-pdf/dist/Page/AnnotationLayer.css';
@@ -35,6 +36,7 @@ const InteractiveReader = () => {
   const [documents, setDocuments] = useState([]);
   const [currentFile, setCurrentFile] = useState(null);
   const [targetLanguage, setTargetLanguage] = useState("Cebuano (CEB)");
+  const { settings } = useSettings();
 
   // PDF State
   const [selectedWord, setSelectedWord] = useState("");
@@ -288,7 +290,7 @@ const InteractiveReader = () => {
       return;
     }
 
-    setLoading(true);
+    // setLoading(true);
     try {
       // LAYER 2: Semantic check via transformers.js worker
       const isMeaningful = await isSemanticallyDefinable(textToCheck);
@@ -298,27 +300,38 @@ const InteractiveReader = () => {
         return;
       }
 
-      // Both gates passed — set as pending (user must confirm)
-      if (suggestion && ENABLE_NGRAM_SUGGESTIONS) {
-        setHighlightSuggestion({ original, suggestion });
-        setPendingWord(original);
-        console.log(`[N-gram] Suggesting correction: "${original}" → "${suggestion}"`);
+      // Both gates passed — now check askBeforeDefining setting
+      if (settings.askBeforeDefining) {
+        if (suggestion && ENABLE_NGRAM_SUGGESTIONS) {
+          setHighlightSuggestion({ original, suggestion });
+          setPendingWord(original);
+        } else {
+          setHighlightSuggestion(null);
+          setPendingWord(original);
+        }
+
+        if (window.innerWidth < 768) {
+          setMobileView("insights");
+        }
+
       } else {
+        // define immediately without asking
         setHighlightSuggestion(null);
-        setPendingWord(original);
+        setPendingWord(""); 
+        setSelectedWord(original);
+        await addToHistory();
+
+        if (window.innerWidth < 768) {
+          setMobileView("insights");
+        }
       }
 
-      if (window.innerWidth < 768) {
-        setMobileView("insights");
-      }
     } catch (err) {
       console.error("Semantic worker failed, bypassing gate:", err);
       setHighlightSuggestion(null);
       setSelectedWord(finalSelection);
       await addToHistory();
-    } finally {
-      setLoading(false);
-    }
+    } 
   };
 
   const acceptSuggestion = () => {

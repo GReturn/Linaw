@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Sparkles, Volume2, Maximize2, AlertCircle, Lightbulb, Check, X, Search, ChevronDown, Image as ImageIcon, ImageIcon as ImageSearchIcon, X as XIcon, ZoomIn, ZoomOut } from 'lucide-react';
 import LinawLoader from '../common/LinawLoader';
+import { useSettings } from "../../context/SettingsContext";
 
 const SkeletonBlock = ({ className = "" }) => (
     <div className={`animate-pulse bg-gray-100 rounded-xl ${className}`} />
@@ -82,6 +83,8 @@ const Explain = ({
         const match = langStr.match(/\((.*?)\)/);
         return match ? match[1] : "CE";
     };
+
+    const { settings } = useSettings();
 
     const langAbbr = getAbbreviation(targetLanguage);
 
@@ -216,61 +219,61 @@ const Explain = ({
                 {/* Definition loading (post-confirm) */}
                 {isDefining && <LinawLoader text="Defining..." />}
 
-                {/* Content — only show when NOT loading the definition */}
-                {!isDefining && (
-                    <>
-                        {/* Translation Section (Phase 2) */}
-                        {targetLanguage !== "None (EN)" && (
-                            <>
-                                {isTranslating ? (
-                                    <div className="border border-gray-100 rounded-xl p-4">
-                                        <LinawLoader text={`Translating to ${targetLanguage.split(' ')[0]}...`} className="py-2" />
-                                    </div>
-                                ) : definition && definition.translated_context ? (
-                                    <div className="bg-white border border-[#3DBDB4]/20 rounded-xl p-4 transition-all duration-300">
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <span className="w-5 h-5 flex items-center justify-center bg-[#3DBDB4] text-white rounded text-[9px] font-black">{langAbbr}</span>
-                                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{targetLanguage.split(' ')[0]} Context</span>
-                                        </div>
-                                        <p className="text-sm text-gray-700 leading-relaxed font-medium italic">
-                                            {definition.translated_context}
-                                        </p>
-                                    </div>
-                                ) : definition && !definition.translated_context ? (
-                                    <div className="bg-red-50 border border-red-100 rounded-xl p-4 transition-all duration-300 flex items-center gap-2">
-                                        <AlertCircle size={14} className="text-red-400" />
-                                        <p className="text-xs text-red-500 font-medium tracking-wide">
-                                            Translation unavailable.
-                                        </p>
-                                    </div>
-                                ) : null}
-                            </>
-                        )}
-
-                        {definition && (
-                            <div className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
-                                <div className="flex items-center justify-between mb-2">
-                                    <div className="flex items-center gap-2">
-                                        <span className="w-5 h-5 flex items-center justify-center bg-[#2D3748] text-white rounded text-[9px] font-black">EN</span>
-                                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">English Definition</span>
-                                    </div>
-                                    <Volume2
-                                        size={14}
-                                        className="text-gray-300 cursor-pointer hover:text-[#3DBDB4]"
-                                        onClick={() => {
-                                            if (definition?.english_definition) {
-                                                const utterance = new SpeechSynthesisUtterance(definition.english_definition);
-                                                utterance.lang = 'en-US';
-                                                window.speechSynthesis.speak(utterance);
-                                            }
-                                        }}
-                                    />
+            {/* Content — only show when NOT loading the definition */}
+            {!isDefining && (
+                <>
+                    {/* Translation Section (Phase 2) */}
+                    {settings.showLanguageContext && targetLanguage !== "None (EN)" && (
+                        <>
+                            {isTranslating ? (
+                                <div className="border border-gray-100 rounded-xl p-4">
+                                    <LinawLoader text={`Translating to ${targetLanguage.split(' ')[0]}...`} className="py-2" />
                                 </div>
-                                <p className="text-sm text-gray-600 leading-relaxed">
-                                    {definition.english_definition}
-                                </p>
+                            ) : definition && definition.translated_context ? (
+                                <div className="bg-white border border-[#3DBDB4]/20 rounded-xl p-4 transition-all duration-300">
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <span className="w-5 h-5 flex items-center justify-center bg-[#3DBDB4] text-white rounded text-[9px] font-black">{langAbbr}</span>
+                                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{targetLanguage.split(' ')[0]} Context</span>
+                                    </div>
+                                    <p className="text-sm text-gray-700 leading-relaxed font-medium italic">
+                                        {definition.translated_context}
+                                    </p>
+                                </div>
+                            ) : definition && !definition.translated_context ? (
+                                <div className="bg-red-50 border border-red-100 rounded-xl p-4 transition-all duration-300 flex items-center gap-2">
+                                    <AlertCircle size={14} className="text-red-400" />
+                                    <p className="text-xs text-red-500 font-medium tracking-wide">
+                                        Translation unavailable.
+                                    </p>
+                                </div>
+                            ) : null}
+                        </>
+                    )}
+
+                    {settings.showEnglish && definition && (
+                        <div className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
+                            <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center gap-2">
+                                    <span className="w-5 h-5 flex items-center justify-center bg-[#2D3748] text-white rounded text-[9px] font-black">EN</span>
+                                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">English Definition</span>
+                                </div>
+                                <Volume2
+                                    size={14}
+                                    className="text-gray-300 cursor-pointer hover:text-[#3DBDB4]"
+                                    onClick={() => {
+                                        if (definition?.english_definition) {
+                                            const utterance = new SpeechSynthesisUtterance(definition.english_definition);
+                                            utterance.lang = 'en-US';
+                                            window.speechSynthesis.speak(utterance);
+                                        }
+                                    }}
+                                />
                             </div>
-                        )}
+                            <p className="text-sm text-gray-600 leading-relaxed">
+                                {definition.english_definition}
+                            </p>
+                        </div>
+                    )}
 
                         {/* Image Search Button - Only show if there's a selected word */}
                         {selectedWord && !showImage && (

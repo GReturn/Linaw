@@ -2,22 +2,11 @@ import React, { useState } from "react";
 import SettingsHeader from "../components/SettingsHeader";
 import { ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useSettings } from "../context/SettingsContext";
 
 export default function SettingsPage() {
-  const [settings, setSettings] = useState({
-    showImage: true,
-    showEnglish: true,
-    showLanguageContext: true,
-    askBeforeDefining: false,
-  });
-
-  const toggleSetting = (key) => {
-    setSettings((prev) => ({
-      ...prev,
-      [key]: !prev[key],
-    }));
-  };
-
+    
+  const { settings, toggleSetting } = useSettings();
   const navigate = useNavigate();
 
   return (
@@ -71,8 +60,8 @@ export default function SettingsPage() {
               />
 
               <SettingToggle
-                title="Show Cebuano context"
-                description="Display the explanation rewritten in Cebuano for deeper understanding."
+                title="Show Language context"
+                description="Display the explanation rewritten in the target language for deeper understanding."
                 enabled={settings.showLanguageContext}
                 onToggle={() => toggleSetting("showLanguageContext")}
               />
