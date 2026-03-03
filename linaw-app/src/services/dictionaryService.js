@@ -23,10 +23,10 @@ const getLangKey = (language) => {
 };
 
 /**
- * Standardizes the term key for database lookups (lowercase, underscore for spaces).
+ * Standardizes the term key for database lookups (lowercase).
  */
 const getTermKey = (term) => {
-  return term.toLowerCase().trim().replace(/\s+/g, "_");
+  return term.toLowerCase().trim();
 };
 
 /**
