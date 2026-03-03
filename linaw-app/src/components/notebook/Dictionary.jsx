@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Book, History, ChevronLeft, ChevronRight, FileText, Plus } from 'lucide-react';
+import { Book, History, ChevronLeft, ChevronRight, FileText, Plus, Brain } from 'lucide-react';
+import FlashcardQuiz from './FlashcardQuiz';
 
 const Dictionary = ({
     mobileView,
@@ -8,7 +9,9 @@ const Dictionary = ({
     history,
     setCurrentFile,
     handleFileUpload,
-    handleHistoryItemClick
+    handleHistoryItemClick,
+    userId,
+    notebookId,
 }) => {
     const [activeTab, setActiveTab] = useState('sources');
 
@@ -36,6 +39,12 @@ const Dictionary = ({
                     className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-xs font-bold transition-all ${activeTab === 'history' ? 'bg-white shadow-sm text-[#FF6B6B]' : 'text-gray-400 hover:text-gray-600'}`}
                 >
                     <History size={14} /> Dictionary
+                </button>
+                <button
+                    onClick={() => setActiveTab('quiz')}
+                    className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-xs font-bold transition-all ${activeTab === 'quiz' ? 'bg-white shadow-sm text-[#FFD93C]' : 'text-gray-400 hover:text-gray-600'}`}
+                >
+                    <Brain size={14} /> Quiz
                 </button>
             </div>
 
@@ -70,7 +79,7 @@ const Dictionary = ({
                             <Plus size={16} /> Add Source
                         </button>
                     </div>
-                ) : (
+                ) : activeTab === 'history' ? (
                     <div className="space-y-2">
                         <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 ml-1">Recent Lookups</p>
                         {history.length > 0 ? history.map((term, i) => (
@@ -82,6 +91,12 @@ const Dictionary = ({
                             <p className="text-sm text-gray-400 text-center py-4">No history yet</p>
                         )}
                     </div>
+                ) : (
+                    <FlashcardQuiz
+                        history={history}
+                        userId={userId}
+                        notebookId={notebookId}
+                    />
                 )}
             </div>
         </aside>
