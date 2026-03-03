@@ -37,7 +37,8 @@ export default function InteractiveReader() {
       <div className="scale-[0.9] origin-top-left w-[111%] h-[111%]">
         <div className="flex flex-col md:flex-row h-full">
       {/* Left Side: Document Reader */}
-      <div className="flex-1 overflow-y-auto p-8 md:p-12 bg-[#fafcfb] h-full">
+      <div className="flex-1 overflow-y-auto p-8 md:p-12 bg-[#fafcfb] h-full direction-rtl custom-scroll">
+        <div className="direction-ltr">
         <div className="max-w-xl mx-auto">
           <div className="flex items-center gap-2 text-[#6b7280] mb-8 pb-4 border-b border-gray-200">
             <BookOpen size={20} />
@@ -62,11 +63,12 @@ export default function InteractiveReader() {
               </span>, which is also what makes leaves look green! It acts like a tiny solar panel, catching the sunlight so the plant can cook its meal.
             </p>
           </div>
+          </div>
         </div>
       </div>
 
       {/* Right Side: Explanation Panel */}
-      <div className="w-full md:w-[40%] bg-white border-t md:border-t-0 md:border-l border-gray-200 p-8 flex flex-col h-full overflow-y-auto">
+      <div className="w-full md:w-[40%] bg-white border-t md:border-t-0 md:border-l border-gray-200 p-8 flex flex-col h-full overflow-y-auto custom-scroll">
         {activeWord && dictionary[activeWord] ? (
           <div key={activeWord} className="flex flex-col h-full animate-in fade-in slide-in-from-right-4 duration-300">
             <h2 className="text-sm font-bold tracking-wider text-gray-400 uppercase mb-2">Explanation</h2>

@@ -11,7 +11,7 @@ import { doc, setDoc } from "firebase/firestore";
 import { db } from "../services/firebase";
 import { createNotebook } from "../services/notebookService";
 import { useSearchParams } from "react-router-dom";
-
+import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 
 export default function AuthPage() {
   const [searchParams] = useSearchParams();
@@ -22,6 +22,33 @@ export default function AuthPage() {
   const [fullName, setFullName] = useState("");
 
   const navigate = useNavigate();
+
+  const handleGoogleAuth = async () => {
+    try {
+      const provider = new GoogleAuthProvider();
+      const result = await signInWithPopup(auth, provider);
+
+      const user = result.user;
+
+      const userRef = doc(db, "users", user.uid);
+
+      await setDoc(
+        userRef,
+        {
+          name: user.displayName,
+          email: user.email,
+          createdAt: new Date()
+        },
+        { merge: true } // prevents overwriting existing users
+      );
+
+      await createNotebook(user.uid, "Getting Started");
+
+      navigate("/notebook/dashboard");
+    } catch (error) {
+      alert(error.message);
+    }
+  };
 
   const handleSubmit = async () => {
     try {
@@ -90,6 +117,15 @@ export default function AuthPage() {
 
         <button className="btn primary" onClick={handleSubmit}>
           {isLogin ? "Login" : "Create Account"}
+        </button>
+
+        <button className="google-btn" onClick={handleGoogleAuth}>
+          <img
+            src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
+            alt="Google"
+            className="google-icon"
+          />
+          <span>Continue with Google</span>
         </button>
 
         <p className="switch-text">

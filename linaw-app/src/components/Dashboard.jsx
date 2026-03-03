@@ -139,34 +139,86 @@ export default function Dashboard({ searchTerm = "" }) {
 
       {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-6 w-80 shadow-xl">
-            <h3 className="text-lg font-bold mb-4 text-[#2D3748]">
-              Create Notebook
-            </h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
 
-            <input
-              type="text"
-              placeholder="Notebook title"
-              value={newTitle}
-              onChange={(e) => setNewTitle(e.target.value)}
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-[#3DBDB4]"
-            />
+          <div className="w-[420px] bg-white rounded-[28px] shadow-[0_30px_80px_rgba(0,0,0,0.15)] border border-gray-100 overflow-hidden">
 
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={() => setShowModal(false)}
-                className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700"
-              >
-                Cancel
-              </button>
+            {/* Header */}
+            <div className="px-8 pt-8 pb-4">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-12 h-12 rounded-2xl bg-[#3DBDB4]/10 flex items-center justify-center text-[#3DBDB4]">
+                  <Plus size={22} strokeWidth={3} />
+                </div>
+                <div>
+                  <h3 className="text-xl font-extrabold text-[#2D3748] leading-tight">
+                    Create Notebook
+                  </h3>
+                  <p className="text-sm text-gray-400">
+                    Give your new notebook a meaningful name.
+                  </p>
+                </div>
+              </div>
+            </div>
 
-              <button
-                onClick={handleCreateNotebook}
-                className="px-4 py-2 text-sm bg-[#3DBDB4] text-black rounded-lg hover:opacity-90"
-              >
-                Create
-              </button>
+            {/* Body */}
+            <div className="px-8 pb-8">
+
+              <input
+                type="text"
+                placeholder="e.g. Biology Review"
+                value={newTitle}
+                onChange={(e) => setNewTitle(e.target.value)}
+                className="
+                  w-full
+                  px-5 py-4
+                  rounded-xl
+                  bg-gray-50
+                  border border-gray-200
+                  text-[#2D3748]
+                  font-medium
+                  focus:outline-none
+                  focus:ring-2
+                  focus:ring-[#3DBDB4]/40
+                  focus:border-[#3DBDB4]
+                  transition-all
+                "
+              />
+
+              <div className="flex justify-between items-center mt-6">
+
+                <button
+                  onClick={() => setShowModal(false)}
+                  className="
+                    text-sm
+                    font-semibold
+                    text-gray-400
+                    hover:text-gray-600
+                    transition-colors
+                  "
+                >
+                  Cancel
+                </button>
+
+                <button
+                  onClick={handleCreateNotebook}
+                  className="
+                    px-6 py-3
+                    rounded-xl
+                    bg-gradient-to-r from-[#3DBDB4] to-[#35a99f]
+                    text-black
+                    font-bold
+                    text-sm
+                    shadow-md
+                    hover:shadow-lg
+                    hover:-translate-y-0.5
+                    transition-all
+                    duration-200
+                  "
+                >
+                  Create Notebook
+                </button>
+
+              </div>
             </div>
           </div>
         </div>
