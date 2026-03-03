@@ -121,8 +121,8 @@ export default function ExtensionExplain({ selectedWord, wordCount, targetLangua
 
                     console.log(`[Linaw Extension] Fetching definition for: "${selectedWord}", language: ${targetLanguage}`);
                     currentDef = await notebookService.getDefinitionOnly(
-                        user.uid,
-                        "extension",
+                        null, // Pass null to skip history recording
+                        null, // Pass null to skip history recording
                         selectedWord,
                         targetLanguage,
                         contextText
