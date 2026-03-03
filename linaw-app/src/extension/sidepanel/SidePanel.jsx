@@ -53,13 +53,15 @@ export default function SidePanel() {
     });
 
     // Listen for future highlights
-    if (namespace === 'session' && changes.linawSelectedWord) {
-      setSelectedWord(changes.linawSelectedWord.newValue);
-      setWordCount(changes.linawWordCount ? changes.linawWordCount.newValue : 0);
-      if (changes.linawContextText) {
-        setContextText(changes.linawContextText.newValue);
+    const storageListener = (changes, namespace) => {
+      if (namespace === 'session' && changes.linawSelectedWord) {
+        setSelectedWord(changes.linawSelectedWord.newValue);
+        setWordCount(changes.linawWordCount ? changes.linawWordCount.newValue : 0);
+        if (changes.linawContextText) {
+          setContextText(changes.linawContextText.newValue);
+        }
       }
-    }
+    };
 
     chrome.storage.onChanged.addListener(storageListener);
     return () => chrome.storage.onChanged.removeListener(storageListener);
