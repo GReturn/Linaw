@@ -15,6 +15,16 @@ const shuffle = (arr) => {
     return a;
 };
 
+/**
+ * Replace the term in the definition with a blank
+ */
+const createFillInBlankDefinition = (definition, term) => {
+    // Case insensitive replacement of the term with "_____"
+    // Using regex with word boundaries to avoid partial matches
+    const regex = new RegExp(`\\b${term}\\b`, 'gi');
+    return definition.replace(regex, '_____');
+};
+
 const FlashcardQuiz = ({ history, userId, notebookId }) => {
     // ─── View state ───
     const [view, setView] = useState('list');          // 'list' | 'quiz' | 'results'
@@ -92,7 +102,12 @@ const FlashcardQuiz = ({ history, userId, notebookId }) => {
                 for (const tDoc of translationsSnap.docs) {
                     const data = tDoc.data();
                     if (data.english_definition) {
-                        items.push({ term, definition: data.english_definition });
+                        items.push({
+                            term,
+                            definition: data.english_definition,
+                            // Create a version with blank for display
+                            displayDefinition: createFillInBlankDefinition(data.english_definition, term)
+                        });
                         found = true;
                         break;
                     }
@@ -103,7 +118,11 @@ const FlashcardQuiz = ({ history, userId, notebookId }) => {
                     const rootRef = doc(db, 'global_dictionary', termKey);
                     const rootSnap = await getDoc(rootRef);
                     if (rootSnap.exists() && rootSnap.data().english_definition) {
-                        items.push({ term, definition: rootSnap.data().english_definition });
+                        items.push({
+                            term,
+                            definition: rootSnap.data().english_definition,
+                            displayDefinition: createFillInBlankDefinition(rootSnap.data().english_definition, term)
+                        });
                     }
                 }
             }
@@ -123,6 +142,7 @@ const FlashcardQuiz = ({ history, userId, notebookId }) => {
                 return {
                     term: item.term,
                     definition: item.definition,
+                    displayDefinition: item.displayDefinition, // Use the version with blank
                     choices,
                 };
             });
@@ -345,13 +365,13 @@ const FlashcardQuiz = ({ history, userId, notebookId }) => {
                     />
                 </div>
 
-                {/* Definition Card */}
+                {/* Definition Card - Now using displayDefinition with blank */}
                 <div className={`bg-gradient-to-br from-[#2D3748] to-[#1a2332] rounded-2xl ${isExpanded ? 'p-8' : 'p-5'} shadow-lg`}>
                     <p className={`${isExpanded ? 'text-xs mb-3' : 'text-[10px] mb-2'} font-black text-white/40 uppercase tracking-widest`}>
                         What word matches this definition?
                     </p>
                     <p className={`${isExpanded ? 'text-lg' : 'text-sm'} text-white/90 leading-relaxed font-medium`}>
-                        "{question.definition}"
+                        "{question.displayDefinition || question.definition}"
                     </p>
                 </div>
 
