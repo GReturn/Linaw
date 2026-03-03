@@ -5,7 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { notebookService } from '../../services/notebookService';
 import { MAX_WORD_COUNT, TOO_MANY_WORDS_MESSAGE } from '../../services/selectionValidator';
 
-const ENABLE_NGRAM_CORRECTION = false; // Toggle this to enable/disable "Did you mean" suggestions
+const ENABLE_NGRAM_SUGGESTION_UI = false; // Toggle this to show/hide "Did you mean" suggestion UI only
 const USE_MOCK_DATA = false; // Toggle this to use local mock data instead of API calls
 
 const MOCK_DEFINITION = {
@@ -83,7 +83,8 @@ export default function ExtensionExplain({ selectedWord, wordCount, targetLangua
                         user.uid,
                         "extension",
                         selectedWord,
-                        targetLanguage
+                        targetLanguage,
+                        contextText
                     );
                     console.log(`[Linaw Extension] Definition result:`, currentDef);
 
@@ -127,7 +128,7 @@ export default function ExtensionExplain({ selectedWord, wordCount, targetLangua
 
     // Check for N-gram corrections whenever the selected word or context changes
     useEffect(() => {
-        if (!ENABLE_NGRAM_CORRECTION) {
+        if (!ENABLE_NGRAM_SUGGESTION_UI) {
             setSuggestion(null);
             return;
         }
@@ -208,7 +209,7 @@ export default function ExtensionExplain({ selectedWord, wordCount, targetLangua
         );
     }
 
-    const suggestionUI = (ENABLE_NGRAM_CORRECTION && suggestion) ? (
+    const suggestionUI = (ENABLE_NGRAM_SUGGESTION_UI && suggestion) ? (
         <div className="bg-[#3DBDB4]/10 border border-[#3DBDB4]/30 rounded-xl p-4 flex flex-col gap-2 shadow-sm animate-fade-in">
             <div className="flex items-center gap-2 text-[#2D3748]">
                 <Sparkles size={14} className="text-[#3DBDB4]" />
