@@ -19,6 +19,9 @@ export default function ExtensionExplain({ selectedWord, wordCount, targetLangua
     const [loading, setLoading] = useState(false);
     const [isTranslating, setIsTranslating] = useState(false);
     const [definition, setDefinition] = useState(null);
+    const [suggestion, setSuggestion] = useState(null);
+    const [rejectedReason, setRejectedReason] = useState(null);
+    const [errorMessage, setErrorMessage] = useState(null);
 
     // Ref to prevent wiping English definition on language switch
     const lastWordRef = useRef("");
@@ -45,18 +48,43 @@ export default function ExtensionExplain({ selectedWord, wordCount, targetLangua
             }
 
             setIsTranslating(false);
+            setRejectedReason(null);
+            setErrorMessage(null);
 
             try {
+                if (USE_MOCK_DATA) {
+                    setLoading(true);
+                    await new Promise(resolve => setTimeout(resolve, 600)); // Simulate network delay
+                    setDefinition({
+                        ...MOCK_DEFINITION,
+                        term: selectedWord // dynamic term for better demo feel
+                    });
+                    setLoading(false);
+                    return;
+                }
+
                 let currentDef = null;
 
                 // --- Phase 1: Fast English Fetch (or Cache Hit) ---
                 if (!isLanguageChangeOnly) {
+                    const { isStopwordPhrase } = await import('../../services/wordGate.js');
+
+                    if (isStopwordPhrase(selectedWord)) {
+                        setRejectedReason("This is a common stopword or grammar filler, which usually doesn't need defining.");
+                        setLoading(false);
+                        return;
+                    }
+                    // NOTE: isSemanticallyDefinable (transformers.js) is skipped in the
+                    // extension because Chrome Extension CSP blocks WebAssembly (wasm-eval).
+
+                    console.log(`[Linaw Extension] Fetching definition for: "${selectedWord}", language: ${targetLanguage}`);
                     currentDef = await notebookService.getDefinitionOnly(
                         user.uid,
                         "extension",
                         selectedWord,
                         targetLanguage
                     );
+                    console.log(`[Linaw Extension] Definition result:`, currentDef);
 
                     setDefinition(currentDef);
                     setLoading(false);
@@ -86,6 +114,7 @@ export default function ExtensionExplain({ selectedWord, wordCount, targetLangua
                 }
             } catch (error) {
                 console.error("Failed to fetch progressive explanation:", error);
+                setErrorMessage(`Failed to connect: ${error.message}`);
             } finally {
                 setLoading(false);
                 setIsTranslating(false);
