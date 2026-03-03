@@ -22,7 +22,7 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen text-[#1f2933] font-sans bg-[radial-gradient(circle_at_20%_20%,rgba(78,205,196,0.08),transparent_40%),radial-gradient(circle_at_80%_30%,rgba(255,217,61,0.06),transparent_45%),radial-gradient(circle_at_60%_80%,rgba(255,107,107,0.05),transparent_50%)] bg-white">
+    <div className="min-h-screen text-[#1f2933] font-sans bg-[radial-gradient(circle_at_20%_20%,rgba(78,205,196,0.08),transparent_40%),radial-gradient(circle_at_80%_30%,rgba(255,217,61,0.06),transparent_45%),radial-gradient(circle_at_60%_80%,rgba(255,107,107,0.05),transparent_50%)] bg-white pt-10">
 
       <Header />
 
@@ -86,10 +86,10 @@ export default function Home() {
                     hover:shadow-[0_14px_30px_rgba(78,205,196,0.35)]
                     transition-all duration-300
                   ">
-                  Sign up — It’s free
+                  Get Extension — It’s free
                 </button>
 
-                <button
+                {/* <button
                   onClick={handleGoogleAndRedirect}
                   className="
                     w-full sm:w-[260px] h-[56px]
@@ -106,13 +106,13 @@ export default function Home() {
                     transition-all duration-300
                   ">
                   Sign up with Google
-                </button>
+                </button> */}
 
               </div>
             </div>
 
             {/* RIGHT SIDE */}
-            <div className="w-full max-w-[600px] mx-auto lg:ml-auto mt-12 lg:mt-0 ">
+            <div className="w-full max-w-[625px] mx-auto lg:ml-auto mt-12 lg:mt-0 ">
               <InteractiveReader preview />
             </div>
 
@@ -120,22 +120,14 @@ export default function Home() {
         </div>
       </section>
 
-      {/* SOFT DIVIDER */}
-      <div className="border-t border-gray-200" />
-
       {/* FEATURES */}
-      <section className="py-24 bg-[#fafafa]">
-        <div className="max-w-6xl mx-auto px-6">
+
           <Features />
-        </div>
-      </section>
+
 
       {/* COMPARISON */}
-      <section className="py-24">
-        <div className="max-w-6xl mx-auto px-6">
+     
           <Comparison />
-        </div>
-      </section>
 
     </div>
   );

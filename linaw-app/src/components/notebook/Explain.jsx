@@ -394,7 +394,7 @@ const Explain = ({
 
                         {/* Image display component - only shows when button is clicked */}
                         {showImage && imageUrl && !isSearchingImage && (
-                            <div className="bg-gray-50 rounded-xl overflow-hidden border border-gray-200 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                            <div className="bg-gray-50 rounded-xl border border-gray-200 animate-in fade-in slide-in-from-bottom-2 duration-300">
                                 <div
                                     className="relative group cursor-pointer"
                                     onClick={openFullscreen}
