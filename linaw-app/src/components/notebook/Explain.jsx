@@ -107,7 +107,12 @@ const Explain = ({
      */
     const searchUnsplash = async (query, page = 1) => {
         try {
-            const apiKey = process.env.REACT_APP_UNSPLASH_API_KEY;
+            // For Vite projects
+            const apiKey = import.meta.env.VITE_APP_UNSPLASH_API_KEY;
+
+            // For testing only - replace with your actual key
+            // const apiKey = 'YOUR_API_KEY_HERE';
+
             if (!apiKey) {
                 console.warn('Unsplash API key not configured');
                 return null;
@@ -124,103 +129,6 @@ const Explain = ({
             return null;
         } catch (error) {
             console.warn('Unsplash search failed:', error);
-            return null;
-        }
-    };
-
-    /**
-     * Search Pixabay for images
-     */
-    const searchPixabay = async (query, page = 1) => {
-        try {
-            const apiKey = process.env.REACT_APP_PIXABAY_API_KEY;
-            if (!apiKey) {
-                console.warn('Pixabay API key not configured');
-                return null;
-            }
-
-            const response = await fetch(
-                `https://pixabay.com/api/?q=${encodeURIComponent(query)}&image_type=photo&per_page=1&page=${page}&key=${apiKey}`
-            );
-            const data = await response.json();
-
-            if (data.hits && data.hits.length > 0) {
-                return data.hits[0].webformatURL;
-            }
-            return null;
-        } catch (error) {
-            console.warn('Pixabay search failed:', error);
-            return null;
-        }
-    };
-
-    /**
-     * Search using Pexels API (FREE - No key required for basic usage)
-     */
-    const searchPexels = async (query, page = 1) => {
-        try {
-            const response = await fetch(
-                `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=1&page=${page}`,
-                {
-                    headers: {
-                        'Authorization': 'wKQZWqjd1Mq8XKCLqVVhpjHvQVN6DM7RMyFChHD1Q5VxXH2z6QzKW5sJ'
-                    }
-                }
-            );
-            const data = await response.json();
-
-            if (data.photos && data.photos.length > 0) {
-                return data.photos[0].src.medium;
-            }
-            return null;
-        } catch (error) {
-            console.warn('Pexels search failed:', error);
-            return null;
-        }
-    };
-
-    /**
-     * Fallback: Use Lorem Picsum with offset for different images
-     */
-    const getLoremPicsumImage = (query, offset = 0) => {
-        // Create a hash from the query string for consistency
-        let hash = 0;
-        for (let i = 0; i < query.length; i++) {
-            const char = query.charCodeAt(i);
-            hash = ((hash << 5) - hash) + char;
-            hash = hash & hash; // Convert to 32bit integer
-        }
-        const imageId = (Math.abs(hash) + offset) % 1000;
-        return `https://picsum.photos/500/300?random=${imageId}&query=${encodeURIComponent(query)}`;
-    };
-
-    /**
-     * Alternative fallback: Wikipedia Commons
-     */
-    const searchWikipediaCommons = async (query, page = 1) => {
-        try {
-            const response = await fetch(
-                `https://commons.wikimedia.org/w/api.php?action=query&list=search&srnamespace=6&srsearch=${encodeURIComponent(query)}&srlimit=1&sroffset=${(page - 1) * 1}&format=json&origin=*`
-            );
-            const data = await response.json();
-
-            if (data.query.search.length > 0) {
-                // Extract title and get the image
-                const title = data.query.search[0].title;
-                const imageResponse = await fetch(
-                    `https://commons.wikimedia.org/w/api.php?action=query&titles=${encodeURIComponent(title)}&prop=imageinfo&iiprop=url&format=json&origin=*`
-                );
-                const imageData = await imageResponse.json();
-                const pages = imageData.query.pages;
-                const page = Object.values(pages)[0];
-
-                if (page.imageinfo) {
-                    return page.imageinfo[0].url;
-                }
-            }
-            return null;
-        } catch (error) {
-            console.warn('Wikipedia Commons search failed:', error);
             return null;
         }
     };
@@ -246,45 +154,8 @@ const Explain = ({
                 return;
             }
 
-            // Try Pixabay
-            imageUrl = await searchPixabay(selectedWord, offset + 1);
-            if (imageUrl) {
-                setImageUrl(imageUrl);
-                setImageSource("pixabay");
-                setShowImage(true);
-                setImageOffset(offset);
-                setIsSearchingImage(false);
-                return;
-            }
-
-            // Try Pexels (Usually works without API key)
-            imageUrl = await searchPexels(selectedWord, offset + 1);
-            if (imageUrl) {
-                setImageUrl(imageUrl);
-                setImageSource("pexels");
-                setShowImage(true);
-                setImageOffset(offset);
-                setIsSearchingImage(false);
-                return;
-            }
-
-            // Try Wikipedia Commons
-            imageUrl = await searchWikipediaCommons(selectedWord, offset + 1);
-            if (imageUrl) {
-                setImageUrl(imageUrl);
-                setImageSource("wikipedia");
-                setShowImage(true);
-                setImageOffset(offset);
-                setIsSearchingImage(false);
-                return;
-            }
-
-            // Final fallback: Lorem Picsum
-            const loremImage = getLoremPicsumImage(selectedWord, offset);
-            setImageUrl(loremImage);
-            setImageSource("picsum");
-            setShowImage(true);
-            setImageOffset(offset);
+            // If no image found
+            setImageError('No images found for this term.');
 
         } catch (error) {
             console.error('Image search error:', error);
@@ -434,176 +305,176 @@ const Explain = ({
                 {/* Definition loading (post-confirm) */}
                 {isDefining && <LinawLoader text="Defining..." />}
 
-            {/* Content — only show when NOT loading the definition */}
-            {!isDefining && (
-                <>
-                    {/* Translation Section (Phase 2) */}
-                    {settings.showLanguageContext && targetLanguage !== "None (EN)" && (
-                        <>
-                            {isTranslating ? (
-                                <div className="border border-gray-100 rounded-xl p-4">
-                                    <LinawLoader text={`Translating to ${targetLanguage.split(' ')[0]}...`} className="py-2" />
-                                </div>
-                            ) : definition && definition.translated_context ? (
-                                <div className="bg-white border border-[#3DBDB4]/20 rounded-xl p-4 transition-all duration-300">
-                                    <div className="flex items-center gap-2 mb-2">
-                                        <span className="w-5 h-5 flex items-center justify-center bg-[#3DBDB4] text-white rounded text-[9px] font-black">{langAbbr}</span>
-                                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{targetLanguage.split(' ')[0]} Context</span>
+                {/* Content — only show when NOT loading the definition */}
+                {!isDefining && (
+                    <>
+                        {/* Translation Section (Phase 2) */}
+                        {settings.showLanguageContext && targetLanguage !== "None (EN)" && (
+                            <>
+                                {isTranslating ? (
+                                    <div className="border border-gray-100 rounded-xl p-4">
+                                        <LinawLoader text={`Translating to ${targetLanguage.split(' ')[0]}...`} className="py-2" />
                                     </div>
-                                    <p className="text-sm text-gray-700 leading-relaxed font-medium italic">
-                                        {definition.translated_context}
-                                    </p>
-                                </div>
-                            ) : definition && !definition.translated_context ? (
-                                <div className="bg-red-50 border border-red-100 rounded-xl p-4 transition-all duration-300 flex items-center gap-2">
-                                    <AlertCircle size={14} className="text-red-400" />
-                                    <p className="text-xs text-red-500 font-medium tracking-wide">
-                                        Translation unavailable.
-                                    </p>
-                                </div>
-                            ) : null}
-                        </>
-                    )}
-
-                    {settings.showEnglish && definition && (
-                        <div className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
-                            <div className="flex items-center justify-between mb-2">
-                                <div className="flex items-center gap-2">
-                                    <span className="w-5 h-5 flex items-center justify-center bg-[#2D3748] text-white rounded text-[9px] font-black">EN</span>
-                                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">English Definition</span>
-                                </div>
-                                <Volume2
-                                    size={14}
-                                    className="text-gray-300 cursor-pointer hover:text-[#3DBDB4]"
-                                    onClick={() => {
-                                        if (definition?.english_definition) {
-                                            const utterance = new SpeechSynthesisUtterance(definition.english_definition);
-                                            utterance.lang = 'en-US';
-                                            window.speechSynthesis.speak(utterance);
-                                        }
-                                    }}
-                                />
-                            </div>
-                            <p className="text-sm text-gray-600 leading-relaxed">
-                                {definition.english_definition}
-                            </p>
-                        </div>
-                    )}
-
-                    {/* Image Error State */}
-                    {imageError && (
-                        <div className="bg-red-50 border border-red-100 rounded-xl p-4 flex items-start gap-2">
-                            <AlertCircle size={14} className="text-red-400 mt-0.5 flex-shrink-0" />
-                            <p className="text-xs text-red-600 font-medium">
-                                {imageError}
-                            </p>
-                        </div>
-                    )}
-
-                    {/* Image Search Button - Only show if there's a selected word */}
-                    {selectedWord && !showImage && (
-                        <button
-                            onClick={() => handleImageSearch(0)}
-                            disabled={isSearchingImage}
-                            className="w-full py-3 bg-gradient-to-r from-[#3DBDB4] to-[#35a99f] text-white rounded-xl font-black text-xs uppercase tracking-wider hover:shadow-lg hover:shadow-[#3DBDB4]/20 transition-all duration-300 flex items-center justify-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            {isSearchingImage ? (
-                                <>
-                                    <Loader size={16} className="animate-spin" />
-                                    Searching...
-                                </>
-                            ) : (
-                                <>
-                                    <ImageSearchIcon size={16} className="group-hover:scale-110 transition-transform" />
-                                    Search for related image
-                                </>
-                            )}
-                        </button>
-                    )}
-
-                    {/* Image display component - only shows when button is clicked */}
-                    {showImage && imageUrl && !isSearchingImage && (
-                        <div className="bg-gray-50 rounded-xl overflow-hidden border border-gray-200 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                            <div
-                                className="relative group cursor-pointer"
-                                onClick={openFullscreen}
-                            >
-                                <img
-                                    src={imageUrl}
-                                    alt={`Illustration for ${selectedWord || 'selected term'}`}
-                                    className="w-full h-auto aspect-video object-cover transition-transform duration-300 group-hover:scale-105"
-                                    onError={handleImageLoadError}
-                                />
-                                {/* Overlay with zoom icon on hover */}
-                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100">
-                                    <div className="bg-white/90 backdrop-blur-sm rounded-full p-2 transform scale-75 group-hover:scale-100 transition-all duration-300">
-                                        <ZoomIn size={20} className="text-[#2D3748]" />
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="p-3 bg-white border-t border-gray-100">
-                                {/* Top row: source info and buttons */}
-                                <div className="flex justify-between items-center mb-2">
-                                    <div className="flex-1">
-                                        <p className="text-[8px] font-mono text-gray-400 truncate max-w-[140px]">
-                                            {imageSource && <span className="capitalize font-bold text-gray-500">[{imageSource}]</span>}
+                                ) : definition && definition.translated_context ? (
+                                    <div className="bg-white border border-[#3DBDB4]/20 rounded-xl p-4 transition-all duration-300">
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <span className="w-5 h-5 flex items-center justify-center bg-[#3DBDB4] text-white rounded text-[9px] font-black">{langAbbr}</span>
+                                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{targetLanguage.split(' ')[0]} Context</span>
+                                        </div>
+                                        <p className="text-sm text-gray-700 leading-relaxed font-medium italic">
+                                            {definition.translated_context}
                                         </p>
                                     </div>
+                                ) : definition && !definition.translated_context ? (
+                                    <div className="bg-red-50 border border-red-100 rounded-xl p-4 transition-all duration-300 flex items-center gap-2">
+                                        <AlertCircle size={14} className="text-red-400" />
+                                        <p className="text-xs text-red-500 font-medium tracking-wide">
+                                            Translation unavailable.
+                                        </p>
+                                    </div>
+                                ) : null}
+                            </>
+                        )}
+
+                        {settings.showEnglish && definition && (
+                            <div className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
+                                <div className="flex items-center justify-between mb-2">
                                     <div className="flex items-center gap-2">
+                                        <span className="w-5 h-5 flex items-center justify-center bg-[#2D3748] text-white rounded text-[9px] font-black">EN</span>
+                                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">English Definition</span>
+                                    </div>
+                                    <Volume2
+                                        size={14}
+                                        className="text-gray-300 cursor-pointer hover:text-[#3DBDB4]"
+                                        onClick={() => {
+                                            if (definition?.english_definition) {
+                                                const utterance = new SpeechSynthesisUtterance(definition.english_definition);
+                                                utterance.lang = 'en-US';
+                                                window.speechSynthesis.speak(utterance);
+                                            }
+                                        }}
+                                    />
+                                </div>
+                                <p className="text-sm text-gray-600 leading-relaxed">
+                                    {definition.english_definition}
+                                </p>
+                            </div>
+                        )}
+
+                        {/* Image Error State */}
+                        {imageError && (
+                            <div className="bg-red-50 border border-red-100 rounded-xl p-4 flex items-start gap-2">
+                                <AlertCircle size={14} className="text-red-400 mt-0.5 flex-shrink-0" />
+                                <p className="text-xs text-red-600 font-medium">
+                                    {imageError}
+                                </p>
+                            </div>
+                        )}
+
+                        {/* Image Search Button - Only show if there's a selected word */}
+                        {selectedWord && !showImage && (
+                            <button
+                                onClick={() => handleImageSearch(0)}
+                                disabled={isSearchingImage}
+                                className="w-full py-3 bg-gradient-to-r from-[#3DBDB4] to-[#35a99f] text-white rounded-xl font-black text-xs uppercase tracking-wider hover:shadow-lg hover:shadow-[#3DBDB4]/20 transition-all duration-300 flex items-center justify-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {isSearchingImage ? (
+                                    <>
+                                        <Loader size={16} className="animate-spin" />
+                                        Searching...
+                                    </>
+                                ) : (
+                                    <>
+                                        <ImageSearchIcon size={16} className="group-hover:scale-110 transition-transform" />
+                                        Search for related image
+                                    </>
+                                )}
+                            </button>
+                        )}
+
+                        {/* Image display component - only shows when button is clicked */}
+                        {showImage && imageUrl && !isSearchingImage && (
+                            <div className="bg-gray-50 rounded-xl overflow-hidden border border-gray-200 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                                <div
+                                    className="relative group cursor-pointer"
+                                    onClick={openFullscreen}
+                                >
+                                    <img
+                                        src={imageUrl}
+                                        alt={`Illustration for ${selectedWord || 'selected term'}`}
+                                        className="w-full h-auto aspect-video object-cover transition-transform duration-300 group-hover:scale-105"
+                                        onError={handleImageLoadError}
+                                    />
+                                    {/* Overlay with zoom icon on hover */}
+                                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100">
+                                        <div className="bg-white/90 backdrop-blur-sm rounded-full p-2 transform scale-75 group-hover:scale-100 transition-all duration-300">
+                                            <ZoomIn size={20} className="text-[#2D3748]" />
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="p-3 bg-white border-t border-gray-100">
+                                    {/* Top row: source info and buttons */}
+                                    <div className="flex justify-between items-center mb-2">
+                                        <div className="flex-1">
+                                            <p className="text-[8px] font-mono text-gray-400 truncate max-w-[140px]">
+                                                {imageSource && <span className="capitalize font-bold text-gray-500">[{imageSource}]</span>}
+                                            </p>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                onClick={copyImageUrl}
+                                                className="text-[8px] font-black text-gray-400 hover:text-[#3DBDB4] uppercase tracking-wider flex items-center gap-1"
+                                                title="Copy image URL"
+                                            >
+                                                📋 Copy
+                                            </button>
+                                            <button
+                                                onClick={openFullscreen}
+                                                className="text-[8px] font-black text-[#3DBDB4] hover:text-[#35a99f] uppercase tracking-wider flex items-center gap-1"
+                                            >
+                                                <Maximize2 size={10} /> Expand
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    setShowImage(false);
+                                                    setImageError(null);
+                                                }}
+                                                className="text-[8px] font-black text-gray-400 hover:text-gray-600 uppercase tracking-wider"
+                                            >
+                                                Hide
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Bottom row: Navigation arrows */}
+                                    <div className="flex items-center justify-center gap-2">
                                         <button
-                                            onClick={copyImageUrl}
-                                            className="text-[8px] font-black text-gray-400 hover:text-[#3DBDB4] uppercase tracking-wider flex items-center gap-1"
-                                            title="Copy image URL"
+                                            onClick={handlePreviousImage}
+                                            disabled={imageOffset === 0 || isSearchingImage}
+                                            className="flex items-center justify-center p-2 rounded-lg bg-gray-100 hover:bg-[#3DBDB4]/10 text-gray-600 hover:text-[#3DBDB4] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                                            title="Previous image"
                                         >
-                                            📋 Copy
+                                            <ChevronLeft size={16} />
                                         </button>
+                                        <span className="text-[9px] font-bold text-gray-500">
+                                            {imageOffset + 1}
+                                        </span>
                                         <button
-                                            onClick={openFullscreen}
-                                            className="text-[8px] font-black text-[#3DBDB4] hover:text-[#35a99f] uppercase tracking-wider flex items-center gap-1"
+                                            onClick={handleNextImage}
+                                            disabled={isSearchingImage}
+                                            className="flex items-center justify-center p-2 rounded-lg bg-gray-100 hover:bg-[#3DBDB4]/10 text-gray-600 hover:text-[#3DBDB4] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                                            title="Next image"
                                         >
-                                            <Maximize2 size={10} /> Expand
-                                        </button>
-                                        <button
-                                            onClick={() => {
-                                                setShowImage(false);
-                                                setImageError(null);
-                                            }}
-                                            className="text-[8px] font-black text-gray-400 hover:text-gray-600 uppercase tracking-wider"
-                                        >
-                                            Hide
+                                            {isSearchingImage ? (
+                                                <Loader size={16} className="animate-spin" />
+                                            ) : (
+                                                <ChevronRight size={16} />
+                                            )}
                                         </button>
                                     </div>
                                 </div>
-
-                                {/* Bottom row: Navigation arrows */}
-                                <div className="flex items-center justify-center gap-2">
-                                    <button
-                                        onClick={handlePreviousImage}
-                                        disabled={imageOffset === 0 || isSearchingImage}
-                                        className="flex items-center justify-center p-2 rounded-lg bg-gray-100 hover:bg-[#3DBDB4]/10 text-gray-600 hover:text-[#3DBDB4] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                                        title="Previous image"
-                                    >
-                                        <ChevronLeft size={16} />
-                                    </button>
-                                    <span className="text-[9px] font-bold text-gray-500">
-                                        {imageOffset + 1}
-                                    </span>
-                                    <button
-                                        onClick={handleNextImage}
-                                        disabled={isSearchingImage}
-                                        className="flex items-center justify-center p-2 rounded-lg bg-gray-100 hover:bg-[#3DBDB4]/10 text-gray-600 hover:text-[#3DBDB4] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                                        title="Next image"
-                                    >
-                                        {isSearchingImage ? (
-                                            <Loader size={16} className="animate-spin" />
-                                        ) : (
-                                            <ChevronRight size={16} />
-                                        )}
-                                    </button>
-                                </div>
                             </div>
-                        </div>
-                    )}
+                        )}
 
                         {settings.showConfusedWords && confusionTerms.length > 0 && (
                             <div className="bg-[#FF6B6B]/5 border border-[#FF6B6B]/20 rounded-xl p-4">
