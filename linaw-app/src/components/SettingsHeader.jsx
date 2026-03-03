@@ -2,21 +2,17 @@ import React from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 
-export default function Header() {
+export default function DashboardHeader() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
-  // const handleLogout = async () => {
-  //   try {
-  //     await logout();
-  //     navigate('/auth');
-  //   } catch (error) {
-  //     console.error("Failed to log out", error);
-  //   }
-  // };
-
-  const handleLogin = () => {
-    navigate('/auth');
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/auth');
+    } catch (error) {
+      console.error("Failed to log out", error);
+    }
   };
 
   return (
@@ -28,11 +24,8 @@ export default function Header() {
         </span>
       </Link>
       <div className="flex items-center gap-4">
-        <button onClick={handleLogin} className="px-6 py-3 rounded-2xl bg-[#FF6B6B] text-black font-bold hover:bg-[#ff5252] hover:scale-105 hover:rotate-1 transition-all shadow-[0_4px_0_#d32f2f] active:shadow-none active:translate-y-[4px]">
-          Login
-        </button>
-        <button className="px-6 py-3 rounded-2xl bg-[#4ECDC4] text-black font-bold hover:bg-[#3dbdb4] hover:scale-105 hover:rotate-1 transition-all shadow-[0_4px_0_#2b9e96] active:shadow-none active:translate-y-[4px]">
-          Get Extension
+        <button onClick={handleLogout} className="px-6 py-3 rounded-2xl bg-[#FF6B6B] text-black font-bold hover:bg-[#ff5252] hover:scale-105 hover:rotate-1 transition-all shadow-[0_4px_0_#d32f2f] active:shadow-none active:translate-y-[4px]">
+          Logout
         </button>
       </div>
     </header>
