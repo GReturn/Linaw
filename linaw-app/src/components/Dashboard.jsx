@@ -46,10 +46,17 @@ export default function Dashboard() {
 
     try {
       setError(null);
-      await createNotebook(user.uid, newTitle.trim());
+      // await createNotebook(user.uid, newTitle.trim());
       setNewTitle("");
       setShowModal(false);
-      await loadData();
+      // await loadData();
+      const newNotebook = await createNotebook(user.uid, newTitle.trim());
+      setNotebooks(prev => [
+        ...prev,
+        newNotebook
+      ]);
+
+      navigate(`/notebook/${newNotebook.id}`);
     } catch (err) {
       console.error("Failed to create notebook:", err);
       setError("Failed to create notebook. Please try again.");
@@ -57,69 +64,80 @@ export default function Dashboard() {
   };
 
   return (
-    <section className="mb-32 flex flex-col items-center px-4">
-      {error && (
-        <div className="mb-8 p-4 bg-red-50 border border-red-200 rounded-2xl flex items-center gap-3 text-red-600 max-w-4xl w-full">
-          <AlertCircle size={20} />
-          <p className="text-sm font-medium">{error}</p>
-        </div>
-      )}
+    <section className="mb-32 px-6">
 
-      {/* Grid Container - Matching your 4-column layout */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-12 w-full">
+      {/* White Workspace Container */}
+      <div className="
+        max-w-[1500px] mx-auto
+        bg-white
+        rounded-[40px]
+        border border-gray-200
+        shadow-[0_30px_70px_rgba(0,0,0,0.06)]
+        px-16 py-16
+      ">
 
-        {/* UNIQUE UPLOAD TILE */}
-        <button
-          onClick={() => setShowModal(true)}
-          className="group aspect-square min-h-[240px] rounded-3xl border-2 border-dashed border-[#3DBDB4]/40 hover:border-[#3DBDB4] bg-[#3DBDB4]/5 hover:bg-[#3DBDB4]/10 flex flex-col items-center justify-center transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
-          <div className="w-14 h-14 bg-white rounded-2xl shadow-sm flex items-center justify-center mb-4 group-hover:scale-110 group-hover:bg-[#3DBDB4] group-hover:text-white text-[#3DBDB4] transition-all duration-300">
-            <Plus size={32} strokeWidth={3} />
+        {error && (
+          <div className="mb-10 p-4 bg-red-50 border border-red-200 rounded-2xl flex items-center gap-3 text-red-600">
+            <AlertCircle size={20} />
+            <p className="text-sm font-medium">{error}</p>
           </div>
-          <span className="font-bold text-[#3DBDB4] text-sm uppercase tracking-wider">Create Notebook</span>
-        </button>
-
-        {/* LOADING STATE */}
-        {isLoading ? (
-          <div className="aspect-square min-h-[240px] flex items-center justify-center bg-white/50 rounded-3xl border border-gray-100 shadow-sm">
-            <Loader2 className="animate-spin text-[#3DBDB4]" size={24} />
-          </div>
-        ) : (
-          <>
-            {/* DYNAMIC NOTEBOOK TILES */}
-            {notebooks && notebooks.map((notebook) => (
-              <button
-                key={notebook.id || notebook.notebook_id}
-                onClick={() => navigate(`/notebook/${notebook.id || notebook.notebook_id}`)}
-                className="group aspect-square min-h-[240px] rounded-3xl bg-white border border-gray-100 flex flex-col items-center justify-center transition-all duration-300 shadow-sm hover:shadow-xl hover:-translate-y-1 relative overflow-hidden"
-              >
-                {/* Accent Hover Gradient */}
-                <div className="absolute inset-0 bg-gradient-to-br from-[#FFD93C]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-
-                <div className="w-14 h-14 bg-[#FFF9F0] rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 group-hover:bg-[#2D3748] text-[#2D3748] group-hover:text-white transition-all duration-300 relative z-10">
-                  <BookOpen size={28} />
-                </div>
-
-                <span className="font-bold text-[#2D3748] px-4 text-center truncate w-full relative z-10 text-sm">
-                  {notebook.title}
-                </span>
-              </button>
-            ))}
-
-            {/* PLACEHOLDER SLOTS */}
-            {notebooks && notebooks.length < 3 && Array.from({ length: 3 - notebooks.length }).map((_, i) => (
-              <div key={i} className="aspect-square min-h-[240px] rounded-3xl border border-gray-100 bg-gray-50/50 flex flex-col items-center justify-center opacity-50">
-                <File size={28} className="text-gray-300 mb-2" />
-                <span className="font-medium text-gray-400 text-[10px] uppercase tracking-widest text-center px-2">Empty Slot</span>
-              </div>
-            ))}
-          </>
         )}
+
+        {/* Dynamic Grid */}
+        <div className="
+          grid
+          gap-12
+          w-full
+          [grid-template-columns:repeat(auto-fit,minmax(260px,1fr))]
+        ">
+
+          {/* Create Notebook Tile */}
+          <button
+            onClick={() => setShowModal(true)}
+            className="group rounded-[28px] border-2 border-dashed border-[#3DBDB4]/40 hover:border-[#3DBDB4] bg-[#3DBDB4]/5 hover:bg-[#3DBDB4]/10 flex flex-col items-center justify-center py-16 transition-all duration-300 hover:shadow-xl hover:-translate-y-2"
+          >
+            <div className="w-20 h-20 bg-white rounded-3xl shadow-md flex items-center justify-center mb-6 group-hover:scale-110 group-hover:bg-[#3DBDB4] group-hover:text-white text-[#3DBDB4] transition-all duration-300">
+              <Plus size={36} strokeWidth={3} />
+            </div>
+            <span className="font-bold text-[#3DBDB4] text-base uppercase tracking-wider">
+              Create Notebook
+            </span>
+          </button>
+
+          {/* Loading */}
+          {isLoading && (
+            <div className="flex items-center justify-center py-16">
+              <Loader2 className="animate-spin text-[#3DBDB4]" size={32} />
+            </div>
+          )}
+
+          {/* Notebooks */}
+          {!isLoading && notebooks.map((notebook) => (
+            <button
+              key={notebook.id}
+              onClick={() => navigate(`/notebook/${notebook.id}`)}
+              className="group rounded-[28px] bg-white border border-gray-200 flex flex-col items-center justify-center py-16 transition-all duration-300 shadow-sm hover:shadow-2xl hover:-translate-y-2 relative overflow-hidden"
+            >
+              <div className="absolute inset-0 bg-gradient-to-br from-[#FFD93C]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+
+              <div className="w-20 h-20 bg-[#FFF9F0] rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 group-hover:bg-[#2D3748] text-[#2D3748] group-hover:text-white transition-all duration-300 relative z-10">
+                <BookOpen size={32} />
+              </div>
+
+              <span className="font-bold text-[#2D3748] px-6 text-center truncate w-full relative z-10 text-lg">
+                {notebook.title}
+              </span>
+            </button>
+          ))}
+
+        </div>
+
       </div>
 
+      {/* Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl p-6 w-80 shadow-xl">
-
             <h3 className="text-lg font-bold mb-4 text-[#2D3748]">
               Create Notebook
             </h3>
@@ -147,10 +165,10 @@ export default function Dashboard() {
                 Create
               </button>
             </div>
-
           </div>
         </div>
       )}
+
     </section>
   );
 }

@@ -1,10 +1,15 @@
 import React, { useState, useEffect } from "react";
 import DashboardHeader from "../components/DashboardHeader";
 import Dashboard from "../components/Dashboard";
+import { useAuth } from "../context/AuthContext";
+import { collection, getDocs } from "firebase/firestore";
+import { db } from "../services/firebase";
 
 export default function DashboardPage() {
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [search, setSearch] = useState("");
+  const { user } = useAuth();
+  const [notebooks, setNotebooks] = useState([]); 
 
   useEffect(() => {
     const handleMouseMove = (e) =>
@@ -13,6 +18,23 @@ export default function DashboardPage() {
     window.addEventListener("mousemove", handleMouseMove);
     return () => window.removeEventListener("mousemove", handleMouseMove);
   }, []);
+
+  useEffect(() => {
+    const loadNotebooks = async () => {
+        if (!user) return;
+
+        const ref = collection(db, "users", user.uid, "notebooks");
+        const snapshot = await getDocs(ref);
+        const data = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+        }));
+
+        setNotebooks(data);
+    };
+
+    loadNotebooks();
+    }, [user]);
 
   return (
   <div className="min-h-screen text-[#1E293B] font-sans bg-[radial-gradient(circle_at_15%_20%,rgba(78,205,196,0.06),transparent_40%),radial-gradient(circle_at_85%_70%,rgba(255,107,107,0.05),transparent_50%)] bg-[#FFFDF9]">
@@ -51,7 +73,7 @@ export default function DashboardPage() {
 
           {/* Optional subtle stat */}
           <div className="text-sm text-gray-500 font-medium">
-            12 notebooks
+            {notebooks.length} {notebooks.length === 1 ? "notebook" : "notebooks"}
           </div>
         </div>
 

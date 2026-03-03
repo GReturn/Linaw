@@ -1,6 +1,7 @@
 import React from 'react';
 import { Sparkles, Volume2, Maximize2, AlertCircle, Lightbulb, Check, X, Search } from 'lucide-react';
 import LinawLoader from '../common/LinawLoader';
+import { useSettings } from "../../context/SettingsContext";
 
 const SkeletonBlock = ({ className = "" }) => (
     <div className={`animate-pulse bg-gray-100 rounded-xl ${className}`} />
@@ -28,6 +29,8 @@ const Explain = ({
         const match = langStr.match(/\((.*?)\)/);
         return match ? match[1] : "CE";
     };
+
+    const { settings } = useSettings();
 
     const langAbbr = getAbbreviation(targetLanguage);
 
@@ -114,7 +117,7 @@ const Explain = ({
             {!isDefining && (
                 <>
                     {/* Translation Section (Phase 2) */}
-                    {targetLanguage !== "None (EN)" && (
+                    {settings.showLanguageContext && targetLanguage !== "None (EN)" && (
                         <>
                             {isTranslating ? (
                                 <div className="border border-gray-100 rounded-xl p-4">
@@ -141,7 +144,7 @@ const Explain = ({
                         </>
                     )}
 
-                    {definition && (
+                    {settings.showEnglish && definition && (
                         <div className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
                             <div className="flex items-center justify-between mb-2">
                                 <div className="flex items-center gap-2">
@@ -166,10 +169,12 @@ const Explain = ({
                         </div>
                     )}
 
+                {settings.showImage &&(
                     <div className="bg-gray-50 aspect-video rounded-xl flex flex-col items-center justify-center border border-dashed border-gray-200">
                         <Maximize2 size={24} className="text-gray-300 mb-1" />
                         <p className="text-[9px] font-black text-gray-400 uppercase">Illustration</p>
                     </div>
+                )}
 
                     {confusionTerms.length > 0 && (
                         <div className="bg-[#FF6B6B]/5 border border-[#FF6B6B]/20 rounded-xl p-4">

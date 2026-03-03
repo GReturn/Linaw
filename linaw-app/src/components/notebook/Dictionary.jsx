@@ -19,7 +19,7 @@ const Dictionary = ({
                     <img src="/logo.png" alt="Linaw Logo" className="w-8 h-8 object-contain" />
                     <h2 className="font-bold text-xl tracking-tight text-[#2D3748]">Linaw</h2>
                 </div>
-                <button onClick={() => navigate('/')} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                <button onClick={() => navigate('/notebook/dashboard')} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
                     <ChevronLeft size={20} />
                 </button>
             </div>
