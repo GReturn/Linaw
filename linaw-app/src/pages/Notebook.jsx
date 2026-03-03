@@ -317,7 +317,7 @@ const InteractiveReader = () => {
       } else {
         // define immediately without asking
         setHighlightSuggestion(null);
-        setPendingWord(""); 
+        setPendingWord("");
         setSelectedWord(original);
         await addToHistory();
 
@@ -331,7 +331,7 @@ const InteractiveReader = () => {
       setHighlightSuggestion(null);
       setSelectedWord(finalSelection);
       await addToHistory();
-    } 
+    }
   };
 
   const acceptSuggestion = () => {
@@ -394,6 +394,8 @@ const InteractiveReader = () => {
         setCurrentFile={handleDocumentSwitch}
         handleFileUpload={handleFileUpload}
         handleHistoryItemClick={handleHistoryItemClick}
+        userId={auth.currentUser?.uid}
+        notebookId={id}
       />
 
       {/* --- CENTER: PDF Reader --- */}
