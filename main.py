@@ -203,8 +203,8 @@ async def define_word(request: DefinitionRequest):
             return DefinitionResponse(
                 word=word_key,
                 translated_context=data.get("translated_context", ""),
-                english_definition=data["english_definition"],
-                confused_with=data["confused_with"]
+                english_definition=data.get("english_definition", "No definition."),
+                confused_with=data.get("confused_with", [])
             )
 
     # Map UI language to NLLB codes for the translator service
@@ -329,8 +329,8 @@ async def define_word_only(request: DefinitionOnlyRequest):
             if data.get("cache_version") == CACHE_VERSION:
                 return DefinitionOnlyResponse(
                     word=word_key,
-                    english_definition=data["english_definition"],
-                    confused_with=data["confused_with"]
+                    english_definition=data.get("english_definition", "No definition."),
+                    confused_with=data.get("confused_with", [])
                 )
 
     context_instruction = ""
@@ -456,9 +456,12 @@ async def translate_definition(request: TranslateDefinitionRequest):
                 .collection("translations")
                 .document(lang_code)
             )
-            translation_ref.update({
+            translation_ref.set({
                 "translated_context": translated_text,
-            })
+                "english_definition": request.english_definition,
+                "cache_version": CACHE_VERSION,
+                "updatedAt": SERVER_TIMESTAMP
+            }, merge=True)
 
         return TranslateDefinitionResponse(translated_context=translated_text)
 
