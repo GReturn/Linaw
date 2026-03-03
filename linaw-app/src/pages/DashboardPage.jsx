@@ -9,7 +9,7 @@ export default function DashboardPage() {
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [search, setSearch] = useState("");
   const { user } = useAuth();
-  const [notebooks, setNotebooks] = useState([]); 
+  const [notebooks, setNotebooks] = useState([]);
 
   useEffect(() => {
     const handleMouseMove = (e) =>
@@ -21,67 +21,73 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const loadNotebooks = async () => {
-        if (!user) return;
+      if (!user) return;
 
-        const ref = collection(db, "users", user.uid, "notebooks");
-        const snapshot = await getDocs(ref);
-        const data = snapshot.docs.map(doc => ({
+      const ref = collection(db, "users", user.uid, "notebooks");
+      const snapshot = await getDocs(ref);
+      const data = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
-        }));
+      }));
 
-        setNotebooks(data);
+      setNotebooks(data);
     };
 
     loadNotebooks();
-    }, [user]);
+  }, [user]);
 
   return (
-  <div className="min-h-screen text-[#1E293B] font-sans bg-[radial-gradient(circle_at_15%_20%,rgba(78,205,196,0.06),transparent_40%),radial-gradient(circle_at_85%_70%,rgba(255,107,107,0.05),transparent_50%)] bg-[#FFFDF9]">
+    <div className="min-h-screen text-[#1E293B] font-sans bg-[radial-gradient(circle_at_15%_20%,rgba(78,205,196,0.06),transparent_40%),radial-gradient(circle_at_85%_70%,rgba(255,107,107,0.05),transparent_50%)] bg-[#FFFDF9]">
 
-    <DashboardHeader />
+      <DashboardHeader />
 
-    <main className="pt-28 pb-32 px-8">
-      <div className="max-w-[1400px] mx-auto">
+      <main className="pt-28 pb-32 px-8">
+        <div className="max-w-[1400px] mx-auto">
 
-        {/* ===== Header Section ===== */}
-        <div className="mb-16">
-          <h1 className="text-6xl font-extrabold tracking-tight leading-[1.05]">
-            Your notebooks,
-            <span className="block text-[#4ECDC4]">
-              all in one place.
-            </span>
-          </h1>
+          {/* ===== Header Section ===== */}
+          <div className="mb-16">
+            <h1 className="text-6xl font-extrabold tracking-tight leading-[1.05]">
+              Your notebooks,
+              <span className="block text-[#4ECDC4]">
+                all in one place.
+              </span>
+            </h1>
 
-          <p className="mt-6 text-xl text-gray-600 max-w-3xl leading-relaxed">
-            Revisit insights, continue where you left off, and grow your understanding —
-            one page at a time.
-          </p>
-        </div>
-
-        {/* ===== Controls Bar ===== */}
-        <div className="flex items-center justify-between mb-12">
-
-          {/* Search */}
-          <div className="relative w-[420px]">
-            <input
-              type="text"
-              placeholder="Search notebooks..."
-              className="w-full px-6 py-4 rounded-xl bg-white border border-gray-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#4ECDC4]"
-            />
+            <p className="mt-6 text-xl text-gray-600 max-w-3xl leading-relaxed">
+              Revisit insights, continue where you left off, and grow your understanding —
+              one page at a time.
+            </p>
           </div>
 
-          {/* Optional subtle stat */}
-          <div className="text-sm text-gray-500 font-medium">
-            {notebooks.length} {notebooks.length === 1 ? "notebook" : "notebooks"}
+          {/* ===== Controls Bar ===== */}
+          <div className="flex items-center justify-between mb-12">
+
+            {/* Search */}
+            <div className="relative w-[420px]">
+              <input
+                type="text"
+                placeholder="Search notebooks..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full px-6 py-4 rounded-xl bg-white border border-gray-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#4ECDC4]"
+              />
+            </div>
+
+            {/* Optional subtle stat */}
+            <div className="text-sm text-gray-500 font-medium">
+              {
+                notebooks.filter(nb => nb.title.toLowerCase().includes(search.toLowerCase())).length
+              } {
+                notebooks.filter(nb => nb.title.toLowerCase().includes(search.toLowerCase())).length === 1 ? "notebook" : "notebooks"
+              }
+            </div>
           </div>
+
+
+          <Dashboard searchTerm={search} />
+
         </div>
-
-
-        <Dashboard />
-
-      </div>
-    </main>
-  </div>
-);
+      </main>
+    </div>
+  );
 }
