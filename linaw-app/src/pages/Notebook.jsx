@@ -219,24 +219,7 @@ const InteractiveReader = () => {
         auth.currentUser.uid
       );
 
-      const handleFileUpload = async (event) => {
-  const file = event.target.files[0];
-  if (!file) return;
-
-  try {
-    const uploadedDoc = await notebookService.uploadDocument(
-      file,
-      id,
-      auth.currentUser.uid
-    );
-
-    setCurrentFile(uploadedDoc.fileURL);
-
-  } catch (error) {
-    console.error("UPLOAD ERROR:", error);
-  }
-};
-
+      setCurrentFile(uploadedDoc.fileURL);
     } catch (error) {
       console.error("UPLOAD ERROR:", error);
     }
