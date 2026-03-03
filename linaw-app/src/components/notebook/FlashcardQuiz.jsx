@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Brain, Plus, Trophy, RotateCcw, ArrowLeft, CheckCircle2, XCircle, Sparkles, Clock, Loader } from 'lucide-react';
+import { Brain, Plus, Trophy, RotateCcw, ArrowLeft, CheckCircle2, XCircle, Sparkles, Clock, Loader, Maximize2, Minimize2, X as XIcon } from 'lucide-react';
 import { db } from '../../services/firebase';
 import { doc, getDoc, collection, addDoc, getDocs, updateDoc, serverTimestamp, query, orderBy } from 'firebase/firestore';
 
@@ -21,6 +21,7 @@ const FlashcardQuiz = ({ history, userId, notebookId }) => {
     const [savedQuizzes, setSavedQuizzes] = useState([]);
     const [isLoadingList, setIsLoadingList] = useState(true);
     const [isGenerating, setIsGenerating] = useState(false);
+    const [isExpanded, setIsExpanded] = useState(false);
 
     // ─── Active quiz state ───
     const [activeQuiz, setActiveQuiz] = useState(null);     // full quiz doc + id
@@ -32,6 +33,25 @@ const FlashcardQuiz = ({ history, userId, notebookId }) => {
     const quizzesRef = userId && notebookId
         ? collection(db, 'users', userId, 'notebooks', notebookId, 'quizzes')
         : null;
+
+    // Escape key to collapse expanded view
+    useEffect(() => {
+        const handleEsc = (e) => {
+            if (e.key === 'Escape' && isExpanded) setIsExpanded(false);
+        };
+        document.addEventListener('keydown', handleEsc);
+        return () => document.removeEventListener('keydown', handleEsc);
+    }, [isExpanded]);
+
+    // Prevent body scroll when expanded
+    useEffect(() => {
+        if (isExpanded) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = 'unset';
+        }
+        return () => { document.body.style.overflow = 'unset'; };
+    }, [isExpanded]);
 
     // ─── Fetch saved quizzes ───
     const fetchQuizzes = useCallback(async () => {
@@ -203,47 +223,59 @@ const FlashcardQuiz = ({ history, userId, notebookId }) => {
         setScore(0);
         setSelectedAnswer(null);
         setAnswered(false);
+        setIsExpanded(false);
     };
 
-    // ─────────────────── RENDER ───────────────────
+    // ─────────────────── CONTENT RENDERERS ───────────────────
 
-    // === RESULTS VIEW ===
-    if (view === 'results' && activeQuiz) {
+    // === RESULTS CONTENT ===
+    const renderResults = () => {
         const total = activeQuiz.questions.length;
         const pct = Math.round((score / total) * 100);
         const isGreat = pct >= 80;
         const isPerfect = pct === 100;
 
         return (
-            <div className="space-y-4 animate-[fadeSlideIn_0.3s_ease-out]">
+            <div className={`space-y-4 animate-[fadeSlideIn_0.3s_ease-out] ${isExpanded ? 'max-w-lg mx-auto w-full' : ''}`}>
+                {/* Expand/Collapse + Close */}
+                <div className="flex items-center justify-end gap-1">
+                    <button
+                        onClick={() => setIsExpanded(!isExpanded)}
+                        className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+                        title={isExpanded ? 'Collapse' : 'Expand'}
+                    >
+                        {isExpanded ? <Minimize2 size={14} className="text-gray-400" /> : <Maximize2 size={14} className="text-gray-400" />}
+                    </button>
+                </div>
+
                 {/* Results Card */}
-                <div className={`rounded-2xl p-6 text-center ${isPerfect ? 'bg-gradient-to-br from-[#FFD93C]/20 to-[#3DBDB4]/20 border border-[#FFD93C]/30' : 'bg-white border border-gray-100'} shadow-sm`}>
+                <div className={`rounded-2xl ${isExpanded ? 'p-10' : 'p-6'} text-center ${isPerfect ? 'bg-gradient-to-br from-[#FFD93C]/20 to-[#3DBDB4]/20 border border-[#FFD93C]/30' : 'bg-white border border-gray-100'} shadow-sm`}>
                     <div className="flex justify-center mb-3">
                         {isPerfect ? (
-                            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#FFD93C] to-[#F59E0B] flex items-center justify-center shadow-lg shadow-[#FFD93C]/30 animate-[bounceIn_0.5s_ease-out]">
-                                <Trophy size={28} className="text-white" />
+                            <div className={`${isExpanded ? 'w-24 h-24' : 'w-16 h-16'} rounded-full bg-gradient-to-br from-[#FFD93C] to-[#F59E0B] flex items-center justify-center shadow-lg shadow-[#FFD93C]/30 animate-[bounceIn_0.5s_ease-out]`}>
+                                <Trophy size={isExpanded ? 40 : 28} className="text-white" />
                             </div>
                         ) : isGreat ? (
-                            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#3DBDB4] to-[#2CA39B] flex items-center justify-center shadow-lg shadow-[#3DBDB4]/30">
-                                <CheckCircle2 size={28} className="text-white" />
+                            <div className={`${isExpanded ? 'w-24 h-24' : 'w-16 h-16'} rounded-full bg-gradient-to-br from-[#3DBDB4] to-[#2CA39B] flex items-center justify-center shadow-lg shadow-[#3DBDB4]/30`}>
+                                <CheckCircle2 size={isExpanded ? 40 : 28} className="text-white" />
                             </div>
                         ) : (
-                            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center">
-                                <Brain size={28} className="text-gray-500" />
+                            <div className={`${isExpanded ? 'w-24 h-24' : 'w-16 h-16'} rounded-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center`}>
+                                <Brain size={isExpanded ? 40 : 28} className="text-gray-500" />
                             </div>
                         )}
                     </div>
 
-                    <h3 className="text-2xl font-black text-[#2D3748] mb-1">
+                    <h3 className={`${isExpanded ? 'text-3xl' : 'text-2xl'} font-black text-[#2D3748] mb-1`}>
                         {isPerfect ? 'Perfect!' : isGreat ? 'Great Job!' : 'Keep Practicing!'}
                     </h3>
-                    <p className="text-sm text-gray-400 mb-4">
+                    <p className={`${isExpanded ? 'text-base' : 'text-sm'} text-gray-400 mb-4`}>
                         {isPerfect ? 'You got every single one right!' : isGreat ? 'Almost perfect — impressive!' : 'Every attempt makes you stronger.'}
                     </p>
 
                     {/* Score circle */}
-                    <div className="inline-flex flex-col items-center bg-gray-50 rounded-2xl px-8 py-4 mb-4">
-                        <span className="text-4xl font-black text-[#2D3748]">{score}<span className="text-lg text-gray-400">/{total}</span></span>
+                    <div className={`inline-flex flex-col items-center bg-gray-50 rounded-2xl ${isExpanded ? 'px-12 py-6' : 'px-8 py-4'} mb-4`}>
+                        <span className={`${isExpanded ? 'text-5xl' : 'text-4xl'} font-black text-[#2D3748]`}>{score}<span className={`${isExpanded ? 'text-2xl' : 'text-lg'} text-gray-400`}>/{total}</span></span>
                         <span className="text-xs font-bold text-gray-400 uppercase tracking-wider mt-1">{pct}% correct</span>
                     </div>
 
@@ -259,45 +291,54 @@ const FlashcardQuiz = ({ history, userId, notebookId }) => {
                 <div className="flex gap-2">
                     <button
                         onClick={() => startQuiz(activeQuiz)}
-                        className="flex-1 flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-[#3DBDB4] to-[#35a99f] text-white rounded-xl font-bold text-xs uppercase tracking-wider hover:shadow-lg hover:shadow-[#3DBDB4]/20 transition-all"
+                        className={`flex-1 flex items-center justify-center gap-2 ${isExpanded ? 'py-4 text-sm' : 'py-3 text-xs'} bg-gradient-to-r from-[#3DBDB4] to-[#35a99f] text-white rounded-xl font-bold uppercase tracking-wider hover:shadow-lg hover:shadow-[#3DBDB4]/20 transition-all`}
                     >
                         <RotateCcw size={14} /> Retake
                     </button>
                     <button
                         onClick={backToList}
-                        className="flex-1 flex items-center justify-center gap-2 py-3 bg-gray-100 text-gray-600 rounded-xl font-bold text-xs uppercase tracking-wider hover:bg-gray-200 transition-all"
+                        className={`flex-1 flex items-center justify-center gap-2 ${isExpanded ? 'py-4 text-sm' : 'py-3 text-xs'} bg-gray-100 text-gray-600 rounded-xl font-bold uppercase tracking-wider hover:bg-gray-200 transition-all`}
                     >
                         <ArrowLeft size={14} /> Back
                     </button>
                 </div>
             </div>
         );
-    }
+    };
 
-    // === ACTIVE QUIZ VIEW ===
-    if (view === 'quiz' && activeQuiz) {
+    // === ACTIVE QUIZ CONTENT ===
+    const renderQuiz = () => {
         const question = activeQuiz.questions[currentIndex];
         const total = activeQuiz.questions.length;
         const progress = ((currentIndex) / total) * 100;
 
         return (
-            <div className="space-y-4 animate-[fadeSlideIn_0.3s_ease-out]">
+            <div className={`space-y-4 animate-[fadeSlideIn_0.3s_ease-out] ${isExpanded ? 'max-w-2xl mx-auto w-full' : ''}`}>
                 {/* Header */}
                 <div className="flex items-center justify-between">
                     <button onClick={backToList} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
                         <ArrowLeft size={16} className="text-gray-400" />
                     </button>
-                    <span className="text-xs font-black text-gray-400 uppercase tracking-wider">
+                    <span className={`${isExpanded ? 'text-sm' : 'text-xs'} font-black text-gray-400 uppercase tracking-wider`}>
                         {currentIndex + 1} / {total}
                     </span>
-                    <div className="flex items-center gap-1.5 bg-[#3DBDB4]/10 px-2.5 py-1 rounded-full">
-                        <Trophy size={12} className="text-[#3DBDB4]" />
-                        <span className="text-xs font-black text-[#3DBDB4]">{score}</span>
+                    <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5 bg-[#3DBDB4]/10 px-2.5 py-1 rounded-full">
+                            <Trophy size={12} className="text-[#3DBDB4]" />
+                            <span className="text-xs font-black text-[#3DBDB4]">{score}</span>
+                        </div>
+                        <button
+                            onClick={() => setIsExpanded(!isExpanded)}
+                            className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+                            title={isExpanded ? 'Collapse' : 'Expand'}
+                        >
+                            {isExpanded ? <Minimize2 size={14} className="text-gray-400" /> : <Maximize2 size={14} className="text-gray-400" />}
+                        </button>
                     </div>
                 </div>
 
                 {/* Progress bar */}
-                <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                <div className={`${isExpanded ? 'h-2' : 'h-1.5'} bg-gray-100 rounded-full overflow-hidden`}>
                     <div
                         className="h-full bg-gradient-to-r from-[#3DBDB4] to-[#35a99f] rounded-full transition-all duration-500 ease-out"
                         style={{ width: `${progress}%` }}
@@ -305,11 +346,11 @@ const FlashcardQuiz = ({ history, userId, notebookId }) => {
                 </div>
 
                 {/* Definition Card */}
-                <div className="bg-gradient-to-br from-[#2D3748] to-[#1a2332] rounded-2xl p-5 shadow-lg">
-                    <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-2">
+                <div className={`bg-gradient-to-br from-[#2D3748] to-[#1a2332] rounded-2xl ${isExpanded ? 'p-8' : 'p-5'} shadow-lg`}>
+                    <p className={`${isExpanded ? 'text-xs mb-3' : 'text-[10px] mb-2'} font-black text-white/40 uppercase tracking-widest`}>
                         What word matches this definition?
                     </p>
-                    <p className="text-sm text-white/90 leading-relaxed font-medium">
+                    <p className={`${isExpanded ? 'text-lg' : 'text-sm'} text-white/90 leading-relaxed font-medium`}>
                         "{question.definition}"
                     </p>
                 </div>
@@ -336,19 +377,74 @@ const FlashcardQuiz = ({ history, userId, notebookId }) => {
                                 key={i}
                                 onClick={() => handleAnswer(choice)}
                                 disabled={answered}
-                                className={`p-3 rounded-xl font-bold text-xs transition-all duration-200 ${btnClass} ${answered ? 'cursor-default' : 'cursor-pointer active:scale-95'}`}
+                                className={`${isExpanded ? 'p-5 text-sm' : 'p-3 text-xs'} rounded-xl font-bold transition-all duration-200 ${btnClass} ${answered ? 'cursor-default' : 'cursor-pointer active:scale-95'}`}
                             >
                                 <div className="flex items-center gap-2">
-                                    {showCorrect && <CheckCircle2 size={14} className="text-[#10B981] flex-shrink-0" />}
-                                    {showWrong && <XCircle size={14} className="text-[#FF6B6B] flex-shrink-0" />}
+                                    {showCorrect && <CheckCircle2 size={isExpanded ? 18 : 14} className="text-[#10B981] flex-shrink-0" />}
+                                    {showWrong && <XCircle size={isExpanded ? 18 : 14} className="text-[#FF6B6B] flex-shrink-0" />}
                                     <span className="truncate">{choice}</span>
                                 </div>
                             </button>
                         );
                     })}
                 </div>
+
+                {/* ESC hint in expanded mode */}
+                {isExpanded && (
+                    <p className="text-center text-[10px] text-gray-300 font-mono mt-2">
+                        Press ESC to collapse
+                    </p>
+                )}
             </div>
         );
+    };
+
+    // MAIN RENDER
+
+    // === Expanded overlay for quiz/results ===
+    if (isExpanded && (view === 'quiz' || view === 'results')) {
+        return (
+            <>
+                {/* Sidebar placeholder so layout doesn't collapse */}
+                <div className="space-y-3">
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 ml-1">
+                        Flashcard Quizzes
+                    </p>
+                    <div className="flex items-center justify-center py-8">
+                        <p className="text-xs text-gray-400 text-center">
+                            Quiz is expanded.
+                            <button onClick={() => setIsExpanded(false)} className="text-[#3DBDB4] font-bold ml-1 hover:underline">
+                                Collapse
+                            </button>
+                        </p>
+                    </div>
+                </div>
+
+                {/* Fullscreen overlay */}
+                <div className="fixed inset-0 z-[9999] bg-[#FFF9F0]/98 backdrop-blur-xl flex items-center justify-center p-6 animate-[fadeSlideIn_0.2s_ease-out]">
+                    {/* Close button */}
+                    <button
+                        onClick={() => setIsExpanded(false)}
+                        className="absolute top-6 right-6 p-2 hover:bg-gray-200/50 rounded-full transition-colors"
+                        title="Close expanded view (ESC)"
+                    >
+                        <XIcon size={20} className="text-gray-500" />
+                    </button>
+
+                    {view === 'results' ? renderResults() : renderQuiz()}
+                </div>
+            </>
+        );
+    }
+
+    // === RESULTS (inline) ===
+    if (view === 'results' && activeQuiz) {
+        return renderResults();
+    }
+
+    // === ACTIVE QUIZ (inline) ===
+    if (view === 'quiz' && activeQuiz) {
+        return renderQuiz();
     }
 
     // === QUIZ LIST VIEW (default) ===
