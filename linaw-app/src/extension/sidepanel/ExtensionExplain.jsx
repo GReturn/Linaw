@@ -207,8 +207,46 @@ export default function ExtensionExplain({ selectedWord, wordCount, targetLangua
         );
     }
 
+    const suggestionUI = (ENABLE_NGRAM_CORRECTION && suggestion) ? (
+        <div className="bg-[#3DBDB4]/10 border border-[#3DBDB4]/30 rounded-xl p-4 flex flex-col gap-2 shadow-sm animate-fade-in">
+            <div className="flex items-center gap-2 text-[#2D3748]">
+                <Sparkles size={14} className="text-[#3DBDB4]" />
+                <span className="text-[10px] font-black uppercase tracking-widest text-[#3DBDB4]">Did you mean?</span>
+            </div>
+            <button
+                onClick={() => handleSuggestionClick(suggestion)}
+                className="text-left text-sm font-black text-[#2D3748] hover:text-[#3DBDB4] transition-colors bg-white rounded-lg p-3 border border-[#3DBDB4]/20 shadow-sm"
+            >
+                {suggestion}
+            </button>
+        </div>
+    ) : null;
+
+    if (rejectedReason) {
+        return (
+            <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 bg-[#F8FAFC]">
+                {suggestionUI}
+                <div className="bg-[#FFD93C] rounded-xl p-5 shadow-sm">
+                    <p className="text-[10px] font-black text-[#2D3748]/40 uppercase tracking-widest mb-1">Selected Text</p>
+                    <h2 className="text-lg font-black text-[#2D3748] leading-snug break-words">{selectedWord}</h2>
+                </div>
+
+                <div className="bg-[#2D3748] rounded-xl p-5 flex flex-col items-center text-center gap-3">
+                    <AlertCircle size={32} className="text-[#3DBDB4]" />
+                    <p className="text-sm font-black text-white">Analysis Skipped</p>
+                    <p className="text-xs text-gray-300 leading-relaxed font-medium">{rejectedReason}</p>
+                    <p className="text-[10px] font-bold text-gray-400 mt-1">
+                        Try highlighting a more <span className="text-[#3DBDB4]">descriptive noun, verb, or phrase</span>.
+                    </p>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 bg-[#F8FAFC]">
+
+            {suggestionUI}
 
             <div className="bg-[#FFD93C] rounded-xl p-5 shadow-sm">
                 <p className="text-[10px] font-black text-[#2D3748]/40 uppercase tracking-widest mb-1">Active Term</p>
