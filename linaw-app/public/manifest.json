@@ -29,12 +29,12 @@
     }
   ],
   "icons": {
-    "16": "favicon.ico",
-    "48": "favicon.ico",
-    "128": "favicon.ico"
+    "16": "logo.png",
+    "48": "logo.png",
+    "128": "logo.png"
   },
   "action": {
-    "default_icon": "favicon.ico",
+    "default_icon": "logo.png",
     "default_title": "Linaw"
   }
 }
