@@ -66,12 +66,12 @@ export default function Dashboard() {
       )}
 
       {/* Grid Container - Matching your 4-column layout */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 w-full max-w-4xl">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-12 w-full">
 
         {/* UNIQUE UPLOAD TILE */}
         <button
           onClick={() => setShowModal(true)}
-          className="group aspect-square rounded-3xl border-2 border-dashed border-[#3DBDB4]/40 hover:border-[#3DBDB4] bg-[#3DBDB4]/5 hover:bg-[#3DBDB4]/10 flex flex-col items-center justify-center transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
+          className="group aspect-square min-h-[240px] rounded-3xl border-2 border-dashed border-[#3DBDB4]/40 hover:border-[#3DBDB4] bg-[#3DBDB4]/5 hover:bg-[#3DBDB4]/10 flex flex-col items-center justify-center transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
           <div className="w-14 h-14 bg-white rounded-2xl shadow-sm flex items-center justify-center mb-4 group-hover:scale-110 group-hover:bg-[#3DBDB4] group-hover:text-white text-[#3DBDB4] transition-all duration-300">
             <Plus size={32} strokeWidth={3} />
           </div>
@@ -80,7 +80,7 @@ export default function Dashboard() {
 
         {/* LOADING STATE */}
         {isLoading ? (
-          <div className="aspect-square flex items-center justify-center bg-white/50 rounded-3xl border border-gray-100 shadow-sm">
+          <div className="aspect-square min-h-[240px] flex items-center justify-center bg-white/50 rounded-3xl border border-gray-100 shadow-sm">
             <Loader2 className="animate-spin text-[#3DBDB4]" size={24} />
           </div>
         ) : (
@@ -90,7 +90,7 @@ export default function Dashboard() {
               <button
                 key={notebook.id || notebook.notebook_id}
                 onClick={() => navigate(`/notebook/${notebook.id || notebook.notebook_id}`)}
-                className="group aspect-square rounded-3xl bg-white border border-gray-100 flex flex-col items-center justify-center transition-all duration-300 shadow-sm hover:shadow-xl hover:-translate-y-1 relative overflow-hidden"
+                className="group aspect-square min-h-[240px] rounded-3xl bg-white border border-gray-100 flex flex-col items-center justify-center transition-all duration-300 shadow-sm hover:shadow-xl hover:-translate-y-1 relative overflow-hidden"
               >
                 {/* Accent Hover Gradient */}
                 <div className="absolute inset-0 bg-gradient-to-br from-[#FFD93C]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
@@ -107,7 +107,7 @@ export default function Dashboard() {
 
             {/* PLACEHOLDER SLOTS */}
             {notebooks && notebooks.length < 3 && Array.from({ length: 3 - notebooks.length }).map((_, i) => (
-              <div key={i} className="aspect-square rounded-3xl border border-gray-100 bg-gray-50/50 flex flex-col items-center justify-center opacity-50">
+              <div key={i} className="aspect-square min-h-[240px] rounded-3xl border border-gray-100 bg-gray-50/50 flex flex-col items-center justify-center opacity-50">
                 <File size={28} className="text-gray-300 mb-2" />
                 <span className="font-medium text-gray-400 text-[10px] uppercase tracking-widest text-center px-2">Empty Slot</span>
               </div>

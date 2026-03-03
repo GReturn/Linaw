@@ -10,10 +10,13 @@ import {
 import { doc, setDoc } from "firebase/firestore";
 import { db } from "../services/firebase";
 import { createNotebook } from "../services/notebookService";
+import { useSearchParams } from "react-router-dom";
 
 
 export default function AuthPage() {
-  const [isLogin, setIsLogin] = useState(true);
+  const [searchParams] = useSearchParams();
+  const mode = searchParams.get("mode");
+  const [isLogin, setIsLogin] = useState(mode !== "register");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");

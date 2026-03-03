@@ -16,7 +16,7 @@ export default function Header() {
   // };
 
   const handleLogin = () => {
-    navigate('/auth');
+    navigate("/auth?mode=login");
   };
 
   return (

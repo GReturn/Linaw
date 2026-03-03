@@ -4,8 +4,18 @@ import Hero from '../components/Hero';
 import InteractiveReader from '../components/InteractiveReader';
 import Features from '../components/Features';
 import Comparison from '../components/Comparison';
+import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 export default function Home() {
+
+  const navigate = useNavigate();
+  const { handleGoogleSignUp } = useAuth();
+
+  const handleSignUp = () => {
+    navigate('/auth?mode=register');
+  };
+
   return (
     <div className="min-h-screen text-[#1f2933] font-sans bg-[radial-gradient(circle_at_20%_20%,rgba(78,205,196,0.08),transparent_40%),radial-gradient(circle_at_80%_30%,rgba(255,217,61,0.06),transparent_45%),radial-gradient(circle_at_60%_80%,rgba(255,107,107,0.05),transparent_50%)] bg-white">
 
@@ -34,7 +44,9 @@ export default function Home() {
             {/* CTA BUTTONS */}
             <div className="mt-16 flex gap-8">
 
-              <button className="
+              <button 
+                onClick={handleSignUp}
+                className="
                 w-[280px] h-[64px]
                 rounded-lg
                 bg-gradient-to-br from-[#4ECDC4] to-[#3dbdb4]
@@ -50,7 +62,9 @@ export default function Home() {
                 Sign up — It’s free
               </button>
 
-              <button className="
+              <button
+              onClick={handleGoogleSignUp} 
+              className="
                 w-[280px] h-[64px]
                 rounded-lg
                 bg-white/80

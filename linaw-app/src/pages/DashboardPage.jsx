@@ -15,53 +15,51 @@ export default function DashboardPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#FFF9F0] via-[#FDFCF8] to-[#F7FAFC] text-[#1E293B] font-sans relative overflow-hidden">
+  <div className="min-h-screen text-[#1E293B] font-sans bg-[radial-gradient(circle_at_15%_20%,rgba(78,205,196,0.06),transparent_40%),radial-gradient(circle_at_85%_70%,rgba(255,107,107,0.05),transparent_50%)] bg-[#FFFDF9]">
 
-      {/* Subtle Animated Background */}
-      <div
-        className="fixed inset-0 pointer-events-none transition-transform duration-700 ease-out"
-        style={{
-          transform: `translate(${mousePos.x * -0.015}px, ${mousePos.y * -0.015}px)`
-        }}
-      >
-        <div className="absolute top-[-10%] left-[5%] w-[700px] h-[700px] bg-[#4ECDC4] opacity-[0.06] blur-[120px] rounded-full"></div>
-        <div className="absolute bottom-[-10%] right-[10%] w-[600px] h-[600px] bg-[#FF6B6B] opacity-[0.05] blur-[120px] rounded-full"></div>
+    <DashboardHeader />
+
+    <main className="pt-28 pb-32 px-8">
+      <div className="max-w-[1400px] mx-auto">
+
+        {/* ===== Header Section ===== */}
+        <div className="mb-16">
+          <h1 className="text-6xl font-extrabold tracking-tight leading-[1.05]">
+            Your notebooks,
+            <span className="block text-[#4ECDC4]">
+              all in one place.
+            </span>
+          </h1>
+
+          <p className="mt-6 text-xl text-gray-600 max-w-3xl leading-relaxed">
+            Revisit insights, continue where you left off, and grow your understanding —
+            one page at a time.
+          </p>
+        </div>
+
+        {/* ===== Controls Bar ===== */}
+        <div className="flex items-center justify-between mb-12">
+
+          {/* Search */}
+          <div className="relative w-[420px]">
+            <input
+              type="text"
+              placeholder="Search notebooks..."
+              className="w-full px-6 py-4 rounded-xl bg-white border border-gray-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#4ECDC4]"
+            />
+          </div>
+
+          {/* Optional subtle stat */}
+          <div className="text-sm text-gray-500 font-medium">
+            12 notebooks
+          </div>
+        </div>
+
+
+        <Dashboard />
+
       </div>
-
-      <DashboardHeader />
-
-      <main className="relative z-10 pt-28 pb-24 px-6">
-  <div className="max-w-6xl mx-auto">
-
-    {/* Title Section */}
-    <div className="mb-12">
-      <h1 className="text-5xl font-black tracking-tight text-[#2D3748]">
-        Your Reading Workspace
-      </h1>
-      <p className="mt-4 text-lg text-gray-600 max-w-2xl">
-        Organize your thoughts, revisit insights, and build deeper understanding —
-        one notebook at a time.
-      </p>
-    </div>
-
-    {/* Search Bar */}
-    <div className="mb-14">
-      <div className="relative max-w-xl">
-        <input
-          type="text"
-          placeholder="Search notebooks..."
-          className="w-full px-6 py-4 rounded-2xl bg-white shadow-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#4ECDC4] transition"
-        />
-      </div>
-    </div>
-
-    {/* Notebook Grid (No Heavy Background Card) */}
-    <div>
-      <Dashboard />
-    </div>
-
+    </main>
   </div>
-</main>
-    </div>
-  );
+);
 }
