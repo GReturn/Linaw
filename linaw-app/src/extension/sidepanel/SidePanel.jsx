@@ -13,6 +13,7 @@ export default function SidePanel() {
   const [activeTab, setActiveTab] = useState("explain");
   const [selectedWord, setSelectedWord] = useState('');
   const [wordCount, setWordCount] = useState(0);
+  const [contextText, setContextText] = useState('');
   const [targetLanguage, setTargetLanguage] = useState("Cebuano (CEB)");
 
   // Listen for changes from the background script
@@ -20,10 +21,11 @@ export default function SidePanel() {
     if (!chrome || !chrome.storage) return;
 
     // Load initial word
-    chrome.storage.session.get(['linawSelectedWord', 'linawWordCount'], (result) => {
+    chrome.storage.session.get(['linawSelectedWord', 'linawWordCount', 'linawContextText'], (result) => {
       if (result.linawSelectedWord) {
         setSelectedWord(result.linawSelectedWord);
         setWordCount(result.linawWordCount || 0);
+        setContextText(result.linawContextText || '');
         setActiveTab("explain");
       }
     });
@@ -33,6 +35,9 @@ export default function SidePanel() {
       if (namespace === 'session' && changes.linawSelectedWord) {
         setSelectedWord(changes.linawSelectedWord.newValue);
         setWordCount(changes.linawWordCount ? changes.linawWordCount.newValue : 0);
+        if (changes.linawContextText) {
+          setContextText(changes.linawContextText.newValue);
+        }
         setActiveTab("explain");
       }
     };
@@ -43,6 +48,7 @@ export default function SidePanel() {
 
   const handleHistoryItemClick = (term) => {
     setSelectedWord(term);
+    setContextText(term);
     setActiveTab("explain");
   };
 
@@ -123,6 +129,7 @@ export default function SidePanel() {
             selectedWord={selectedWord}
             wordCount={wordCount}
             targetLanguage={targetLanguage}
+            contextText={contextText}
             onHistoryItemClick={handleHistoryItemClick}
           />
         ) : (
