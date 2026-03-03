@@ -25,7 +25,7 @@ export default function AuthPage() {
       if (isLogin) {
         // LOGIN
         await signInWithEmailAndPassword(auth, email, password);
-        navigate("/");
+        navigate("/notebook/dashboard");
       } else {
         // REGISTER
         const userCredential = await createUserWithEmailAndPassword(

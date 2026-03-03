@@ -65,15 +65,15 @@ const Reader = ({
                     </span>
                     <button
                         onClick={onConfirmSelection}
-                        className="flex items-center gap-1 px-3 py-1 bg-white/20 hover:bg-white/30 rounded-full text-[11px] font-bold transition-all"
+                        className="flex items-center gap-1 px-3 py-1 bg-white/20 hover:bg-white/30 rounded-full text-black text-[11px] font-bold transition-all"
                     >
                         <Check size={12} /> Define
                     </button>
                     <button
                         onClick={onCancelSelection}
-                        className="flex items-center gap-1 px-2 py-1 hover:bg-white/15 rounded-full text-[11px] font-bold opacity-70 hover:opacity-100 transition-all"
+                        className="flex items-center gap-1 px-2 py-1 hover:bg-white/15 rounded-full text-black font-bold opacity-70 hover:opacity-100 transition-all"
                     >
-                        <X size={12} />
+                        <X size={12} /> 
                     </button>
                 </div>
             )}
