@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { Book, History, LogOut } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import { Book, History, LogOut, ChevronDown, Check } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import ExtensionAuth from "./ExtensionAuth";
 import ExtensionExplain from "./ExtensionExplain";
@@ -15,6 +15,30 @@ export default function SidePanel() {
   const [wordCount, setWordCount] = useState(0);
   const [contextText, setContextText] = useState('');
   const [targetLanguage, setTargetLanguage] = useState("Cebuano (CEB)");
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  const languages = [
+    "None (EN)",
+    "Tagalog (TGL)",
+    "Cebuano (CEB)",
+    "Waray (WAR)",
+    "Ilocano (ILO)",
+    "Pangasinense (PAG)",
+    "Hiligaynon (HIL)",
+    "Bikolano (BIK)",
+  ];
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // Listen for changes from the background script
   useEffect(() => {
@@ -79,22 +103,45 @@ export default function SidePanel() {
           <h2 className="font-black text-lg tracking-tight text-[#2D3748]">Linaw</h2>
         </a>
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 px-3 py-1 bg-gray-50 rounded-full border border-gray-200 shadow-inner">
-            <select
-              value={targetLanguage}
-              onChange={(e) => setTargetLanguage(e.target.value)}
-              className="text-[9px] font-black text-gray-500 uppercase tracking-tighter bg-transparent outline-none cursor-pointer appearance-none text-center truncate max-w-[90px]"
-              style={{ textAlignLast: 'center' }}
+          <div className="relative" ref={dropdownRef}>
+            <button
+              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all duration-200 shadow-sm ${isDropdownOpen
+                  ? 'bg-white border-[#3DBDB4]/30 shadow-[#3DBDB4]/10 ring-2 ring-[#3DBDB4]/20'
+                  : 'bg-gray-50 hover:bg-white border-gray-200 hover:border-gray-300'
+                }`}
             >
-              <option value="None (EN)">NONE (EN)</option>
-              <option value="Tagalog (TGL)">TAGALOG (TGL)</option>
-              <option value="Cebuano (CEB)">CEBUANO (CEB)</option>
-              <option value="Waray (WAR)">WARAY (WAR)</option>
-              <option value="Ilocano (ILO)">ILOCANO (ILO)</option>
-              <option value="Pangasinense (PAG)">PANGASINENSE (PAG)</option>
-              <option value="Hiligaynon (HIL)">HILIGAYNON (HIL)</option>
-              <option value="Bikolano (BIK)">BIKOLANO (BIK)</option>
-            </select>
+              <span className={`text-[10px] font-black uppercase tracking-wider ${isDropdownOpen ? 'text-[#3DBDB4]' : 'text-gray-500'
+                }`}>
+                {targetLanguage === "None (EN)" ? "NONE (EN)" : targetLanguage}
+              </span>
+              <ChevronDown size={12} className={`transition-transform duration-300 ${isDropdownOpen ? 'rotate-180 text-[#3DBDB4]' : 'text-gray-400'
+                }`} />
+            </button>
+
+            {isDropdownOpen && (
+              <div className="absolute right-0 top-full mt-2 w-52 bg-white border border-gray-100 rounded-xl shadow-xl shadow-gray-200/50 py-2 z-50">
+                <div className="px-3 py-2 mb-1 border-b border-gray-50">
+                  <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Select Language</span>
+                </div>
+                {languages.map((lang) => (
+                  <button
+                    key={lang}
+                    onClick={() => {
+                      setTargetLanguage(lang);
+                      setIsDropdownOpen(false);
+                    }}
+                    className={`w-full text-left px-4 py-2.5 text-xs font-bold transition-all ${targetLanguage === lang
+                        ? 'bg-[#3DBDB4]/10 text-[#3DBDB4]'
+                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                      } flex items-center justify-between group`}
+                  >
+                    <span className="group-hover:translate-x-1 transition-transform">{lang}</span>
+                    {targetLanguage === lang && <Check size={14} className="animate-in zoom-in-50 duration-200" />}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           <button
             onClick={logout}
