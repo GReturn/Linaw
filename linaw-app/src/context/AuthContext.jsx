@@ -2,6 +2,8 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { auth, db } from '../services/firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
+import { signInWithPopup } from "firebase/auth";
+import { googleProvider } from "../services/firebase";
 
 const AuthContext = createContext();
 
@@ -40,11 +42,20 @@ export const AuthProvider = ({ children }) => {
         return signOut(auth);
     };
 
+    const handleGoogleSignUp = async () => {
+        try {
+          await signInWithPopup(auth, googleProvider);
+        } catch (error) {
+          console.error("Google sign-in failed:", error);
+        }
+      };
+
     const value = {
         user,
         userData,
         loading,
-        logout
+        logout,
+        handleGoogleSignUp
     };
 
     return (

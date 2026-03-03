@@ -9,7 +9,7 @@ export default function DashboardHeader() {
   const handleLogout = async () => {
     try {
       await logout();
-      navigate('/auth');
+      navigate("/auth?mode=login");
     } catch (error) {
       console.error("Failed to log out", error);
     }
