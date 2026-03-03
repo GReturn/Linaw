@@ -1,37 +1,98 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Sparkles, Loader2, Volume2, AlertCircle, Maximize2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { notebookService } from '../../services/notebookService';
 import { MAX_WORD_COUNT, TOO_MANY_WORDS_MESSAGE } from '../../services/selectionValidator';
 
-export default function ExtensionExplain({ selectedWord, wordCount, onHistoryItemClick }) {
+export default function ExtensionExplain({ selectedWord, wordCount, targetLanguage, onHistoryItemClick }) {
     const { user } = useAuth();
     const [loading, setLoading] = useState(false);
+    const [isTranslating, setIsTranslating] = useState(false);
     const [definition, setDefinition] = useState(null);
 
-    // Validate word count using the shared rule
+    // Ref to prevent wiping English definition on language switch
+    const lastWordRef = useRef("");
+
     const tooManyWords = wordCount > MAX_WORD_COUNT;
 
     useEffect(() => {
-        const fetchDefinition = async () => {
+        const fetchProgressively = async () => {
             if (!selectedWord || !user || tooManyWords) {
                 setDefinition(null);
+                setLoading(false);
+                setIsTranslating(false);
                 return;
             }
 
-            setLoading(true);
+            const isLanguageChangeOnly = lastWordRef.current === selectedWord;
+
+            if (!isLanguageChangeOnly) {
+                setLoading(true);
+                setDefinition(null);
+            } else {
+                // Clear the OLD translation immediately on language switch
+                setDefinition(prev => prev ? { ...prev, translated_context: "" } : null);
+            }
+
+            setIsTranslating(false);
+
             try {
-                const result = await notebookService.getDefinition(user.uid, "extension", selectedWord);
-                setDefinition(result);
+                let currentDef = null;
+
+                // --- Phase 1: Fast English Fetch (or Cache Hit) ---
+                if (!isLanguageChangeOnly) {
+                    currentDef = await notebookService.getDefinitionOnly(
+                        user.uid,
+                        "extension",
+                        selectedWord,
+                        targetLanguage
+                    );
+
+                    setDefinition(currentDef);
+                    setLoading(false);
+                    lastWordRef.current = selectedWord;
+                }
+
+                // --- Phase 2: Slow Translation Fetch (if not English) ---
+                if (targetLanguage !== "None (EN)") {
+                    setIsTranslating(true);
+
+                    // Re-fetch english definition from state if we didn't just load it
+                    const enDefToTranslate = currentDef?.english_definition
+                        || await new Promise(resolve => {
+                            setDefinition(prev => { resolve(prev?.english_definition); return prev; });
+                        });
+
+                    const translationResult = await notebookService.getTranslation(
+                        selectedWord,
+                        enDefToTranslate,
+                        targetLanguage
+                    );
+
+                    setDefinition(prev => ({
+                        ...prev,
+                        translated_context: translationResult?.translated_context || "",
+                    }));
+                }
             } catch (error) {
-                console.error("Failed to fetch explanation:", error);
+                console.error("Failed to fetch progressive explanation:", error);
             } finally {
                 setLoading(false);
+                setIsTranslating(false);
             }
         };
 
-        fetchDefinition();
-    }, [selectedWord, wordCount, user]);
+        fetchProgressively();
+    }, [selectedWord, wordCount, user, targetLanguage, tooManyWords]);
+
+    // Helper to get abbreviation for the badge
+    const getAbbreviation = (langStr) => {
+        if (!langStr) return "CE";
+        const match = langStr.match(/\((.*?)\)/);
+        return match ? match[1] : "CE";
+    };
+
+    const langAbbr = getAbbreviation(targetLanguage);
 
     // Empty state — no word selected yet
     if (!selectedWord) {
@@ -71,6 +132,7 @@ export default function ExtensionExplain({ selectedWord, wordCount, onHistoryIte
 
     return (
         <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 bg-[#F8FAFC]">
+
             <div className="bg-[#FFD93C] rounded-xl p-5 shadow-sm">
                 <p className="text-[10px] font-black text-[#2D3748]/40 uppercase tracking-widest mb-1">Active Term</p>
                 <h2 className="text-xl font-black text-[#2D3748]">{selectedWord}</h2>
@@ -83,38 +145,61 @@ export default function ExtensionExplain({ selectedWord, wordCount, onHistoryIte
                 </div>
             ) : definition ? (
                 <>
-                    <div className="bg-white border border-[#3DBDB4]/20 rounded-xl p-4 shadow-sm">
-                        <div className="flex items-center gap-2 mb-2">
-                            <span className="w-5 h-5 flex items-center justify-center bg-[#3DBDB4] text-white rounded text-[9px] font-black">CE</span>
-                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Cebuano Context</span>
-                        </div>
-                        <p className="text-sm text-gray-700 leading-relaxed font-medium italic">
-                            {definition.cebuano_context}
-                        </p>
-                    </div>
+                    {/* Translation Section (Phase 2) */}
+                    {targetLanguage !== "None (EN)" && (
+                        <>
+                            {isTranslating ? (
+                                <div className="border border-gray-100 rounded-xl p-6 flex flex-col items-center justify-center gap-3">
+                                    <Loader2 className="animate-spin text-[#3DBDB4]" size={20} />
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                                        Translating to {targetLanguage.split(' ')[0]}...
+                                    </span>
+                                </div>
+                            ) : definition.translated_context ? (
+                                <div className="bg-white border border-[#3DBDB4]/20 rounded-xl p-4 shadow-sm transition-all duration-300">
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <span className="w-5 h-5 flex items-center justify-center bg-[#3DBDB4] text-white rounded text-[9px] font-black">{langAbbr}</span>
+                                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{targetLanguage.split(' ')[0]} Context</span>
+                                    </div>
+                                    <p className="text-sm text-gray-700 leading-relaxed font-medium italic">
+                                        {definition.translated_context}
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="bg-red-50 border border-red-100 rounded-xl p-4 transition-all duration-300 flex items-center gap-2">
+                                    <AlertCircle size={14} className="text-red-400" />
+                                    <p className="text-xs text-red-500 font-medium tracking-wide">
+                                        Translation unavailable.
+                                    </p>
+                                </div>
+                            )}
+                        </>
+                    )}
 
-                    <div className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
-                        <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center gap-2">
-                                <span className="w-5 h-5 flex items-center justify-center bg-[#2D3748] text-white rounded text-[9px] font-black">EN</span>
-                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">English Definition</span>
+                    {definition.english_definition && (
+                        <div className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
+                            <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center gap-2">
+                                    <span className="w-5 h-5 flex items-center justify-center bg-[#2D3748] text-white rounded text-[9px] font-black">EN</span>
+                                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">English Definition</span>
+                                </div>
+                                <Volume2
+                                    size={14}
+                                    className="text-gray-300 cursor-pointer hover:text-[#3DBDB4] transition-colors"
+                                    onClick={() => {
+                                        if (definition.english_definition) {
+                                            const utterance = new SpeechSynthesisUtterance(definition.english_definition);
+                                            utterance.lang = 'en-US';
+                                            window.speechSynthesis.speak(utterance);
+                                        }
+                                    }}
+                                />
                             </div>
-                            <Volume2
-                                size={14}
-                                className="text-gray-300 cursor-pointer hover:text-[#3DBDB4] transition-colors"
-                                onClick={() => {
-                                    if (definition.english_definition) {
-                                        const utterance = new SpeechSynthesisUtterance(definition.english_definition);
-                                        utterance.lang = 'en-US';
-                                        window.speechSynthesis.speak(utterance);
-                                    }
-                                }}
-                            />
+                            <p className="text-sm text-gray-600 leading-relaxed">
+                                {definition.english_definition}
+                            </p>
                         </div>
-                        <p className="text-sm text-gray-600 leading-relaxed">
-                            {definition.english_definition}
-                        </p>
-                    </div>
+                    )}
 
                     <div className="bg-gray-50 aspect-video rounded-xl flex flex-col items-center justify-center border border-dashed border-gray-200">
                         <Maximize2 size={24} className="text-gray-300 mb-1" />
