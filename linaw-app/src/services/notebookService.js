@@ -87,6 +87,6 @@ export const notebookService = {
 
     const data = await response.json();
 
-    return { id: docRef.id, fileName: file.name, fileURL: data.fileURL };
+    return { fileName: data.fileName, fileURL: data.fileURL };
   }
 };
