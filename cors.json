@@ -5,10 +5,13 @@
       "https://linaw-cebu.vercel.app"
     ],
     "method": [
-      "GET"
+      "GET",
+      "HEAD"
     ],
     "responseHeader": [
-      "Content-Type"
+      "Content-Type",
+      "Content-Range",
+      "Accept-Ranges"
     ],
     "maxAgeSeconds": 3600
   }
