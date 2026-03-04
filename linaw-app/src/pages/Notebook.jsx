@@ -204,10 +204,19 @@ const InteractiveReader = () => {
     };
   }, [id]);
 
+  // Route Firebase Storage URLs through backend proxy to bypass CORS
+  const proxyUrl = (url) => {
+    if (url && (url.includes('storage.googleapis.com') || url.includes('firebasestorage'))) {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      return `${apiUrl}/sources/proxy?url=${encodeURIComponent(url)}`;
+    }
+    return url;
+  };
+
   const handleDocumentSwitch = (fileUrl) => {
     setPageNumber(1);
     setNumPages(null);
-    setCurrentFile(fileUrl);
+    setCurrentFile(proxyUrl(fileUrl));
   };
 
   const handleFileUpload = async (event) => {
@@ -221,7 +230,7 @@ const InteractiveReader = () => {
         auth.currentUser.uid
       );
 
-      setCurrentFile(uploadedDoc.fileURL);
+      setCurrentFile(proxyUrl(uploadedDoc.fileURL));
     } catch (error) {
       console.error("UPLOAD ERROR:", error);
     }
