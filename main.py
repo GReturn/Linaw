@@ -6,7 +6,8 @@ from google import genai
 import httpx
 import uvicorn
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
+from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
@@ -123,35 +124,55 @@ async def upload_source(
     user_id: str = Form(...),
     file: UploadFile = File(...)
 ):
-    unique_filename = f"{uuid.uuid4()}_{file.filename}"
-    print("Uploading to Firebase Storage now...")
-    blob = bucket.blob(f"users/{user_id}/notebooks/{notebook_id}/{unique_filename}")
+    try:
+        unique_filename = f"{uuid.uuid4()}_{file.filename}"
+        print("Uploading to Firebase Storage now...")
+        blob = bucket.blob(f"users/{user_id}/notebooks/{notebook_id}/{unique_filename}")
 
-    content = await file.read()
-    blob.upload_from_string(content, content_type="application/pdf")
+        content = await file.read()
+        blob.upload_from_string(content, content_type="application/pdf")
 
-    blob.make_public()
+        blob.make_public()
 
-    file_url = blob.public_url
+        file_url = blob.public_url
 
-    doc_ref = db.collection("users") \
-        .document(user_id) \
-        .collection("notebooks") \
-        .document(notebook_id) \
-        .collection("documents") \
-        .document()
+        doc_ref = db.collection("users") \
+            .document(user_id) \
+            .collection("notebooks") \
+            .document(notebook_id) \
+            .collection("documents") \
+            .document()
 
-    doc_ref.set({
-        "fileName": file.filename,
-        "fileURL": file_url,
-        "createdAt": SERVER_TIMESTAMP
-    })
+        doc_ref.set({
+            "fileName": file.filename,
+            "fileURL": file_url,
+            "createdAt": SERVER_TIMESTAMP
+        })
 
-    return {
-        "message": "Upload successful",
-        "fileName": file.filename,
-        "fileURL": file_url
-    }
+        return {
+            "message": "Upload successful",
+            "fileName": file.filename,
+            "fileURL": file_url
+        }
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Upload failed: {type(e).__name__}: {str(e)}")
+
+@app.get("/sources/proxy")
+async def proxy_pdf(url: str = Query(...)):
+    """Proxy a PDF from Firebase Storage to bypass CORS restrictions."""
+    try:
+        async with httpx.AsyncClient() as http_client:
+            resp = await http_client.get(url, timeout=30.0, follow_redirects=True)
+            resp.raise_for_status()
+            return StreamingResponse(
+                iter([resp.content]),
+                media_type=resp.headers.get("content-type", "application/pdf"),
+                headers={"Content-Disposition": "inline"}
+            )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to proxy PDF: {str(e)}")
 
 USE_MOCK = False  # Set to False when you actually want to use Gemini
 
