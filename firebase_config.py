@@ -10,7 +10,7 @@ else:
     cred = credentials.Certificate("serviceAccountKey.json")
 
 firebase_admin.initialize_app(cred, {
-    "storageBucket": "linaw-b46e4.firebasestorage.app"
+    "storageBucket": "linaw-9dd2f.firebasestorage.app"
 })
 
 db = firestore.client()
